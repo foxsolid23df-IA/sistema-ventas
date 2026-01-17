@@ -64,10 +64,18 @@ const CameraScanner = ({ isOpen, onClose, onScan }) => {
 
             html5QrcodeRef.current = new Html5Qrcode('camera-scanner-region')
 
+            // Detectar si es dispositivo móvil o escritorio
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            const isDesktop = !isMobile
+
+            // Configuración optimizada para webcams de escritorio
+            // Las webcams de laptop necesitan área de escaneo más grande y mejor resolución
             const config = {
-                fps: 10,
-                qrbox: { width: 250, height: 150 },
-                aspectRatio: 1.0,
+                fps: isDesktop ? 5 : 10, // Menor FPS en desktop para mejor calidad por frame
+                qrbox: isDesktop 
+                    ? { width: 400, height: 300 } // Área más grande para webcams de laptop
+                    : { width: 250, height: 150 }, // Área normal para móviles
+                aspectRatio: isDesktop ? 1.333 : 1.0, // 4:3 para webcams típicas
                 disableFlip: false,
                 // Formatos soportados
                 formatsToSupport: [
@@ -91,6 +99,7 @@ const CameraScanner = ({ isOpen, onClose, onScan }) => {
                 ]
             }
 
+            // Iniciar scanner con configuración optimizada
             await html5QrcodeRef.current.start(
                 selectedCamera,
                 config,
