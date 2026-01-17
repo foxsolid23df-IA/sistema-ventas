@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import TicketVenta from './TicketVenta'
 import { buscarProductoPorCodigo, crearVenta, formatearDinero, validarCodigoBarras } from '../../utils'
+import { productService } from '../../services/productService'
 import { useApi } from '../../hooks/useApi'
 import { useCart } from '../../hooks/useCart'
 import { useGlobalScanner } from '../../hooks/scanner'
@@ -20,24 +21,28 @@ export const Sales = () => {
         }
     }
     const { carrito, agregarProducto, cambiarCantidad, quitarProducto, vaciarCarrito, total } = useCart(mostrarError)
-    
+
     // ESTADOS LOCALES
     const [codigoEscaneado, setCodigoEscaneado] = useState('')
     const [vendiendo, setVendiendo] = useState(false)
     const [mostrarModal, setMostrarModal] = useState(false)
     const [ventaCompletada, setVentaCompletada] = useState(null)
-    
-    // ESTADO PARA EL MODAL DE ERRORES
+
+    // ESTADOS PARA BÚSQUEDA POR NOMBRE
+    const [productos, setProductos] = useState([])
+    const [sugerencias, setSugerencias] = useState([])
+    const [mostrarSugerencias, setMostrarSugerencias] = useState(false)
+
     const [modal, setModal] = useState({
         isOpen: false,
         title: '',
         message: '',
         type: 'info' // 'info', 'error', 'success', 'warning'
     })
-    
+
     // REFERENCIAS
     const campoCodigoRef = useRef(null)
-    
+
     // FUNCIONES PARA EL MODAL DE ERRORES
     const mostrarModalPersonalizado = (title, message, type = 'info') => {
         setModal({
@@ -56,7 +61,48 @@ export const Sales = () => {
             type: 'info'
         })
     }
-    
+
+    // CARGAR PRODUCTOS DE SUPABASE AL INICIAR
+    useEffect(() => {
+        const cargarProductos = async () => {
+            try {
+                const data = await productService.getProducts()
+                setProductos(data)
+            } catch (error) {
+                console.error('Error cargando productos:', error)
+            }
+        }
+        cargarProductos()
+    }, [])
+
+    // BÚSQUEDA POR NOMBRE - Filtrar sugerencias cuando cambia el texto
+    useEffect(() => {
+        if (codigoEscaneado.length >= 2 && !/^\d+$/.test(codigoEscaneado)) {
+            // Si tiene 2+ caracteres y NO es solo números, buscar por nombre
+            const resultados = productos.filter(p =>
+                p.name.toLowerCase().includes(codigoEscaneado.toLowerCase())
+            ).slice(0, 5) // Máximo 5 sugerencias
+            setSugerencias(resultados)
+            setMostrarSugerencias(resultados.length > 0)
+        } else {
+            setSugerencias([])
+            setMostrarSugerencias(false)
+        }
+    }, [codigoEscaneado, productos])
+
+    // Seleccionar producto de las sugerencias
+    const seleccionarProducto = (producto) => {
+        // Mapear image_url a image para compatibilidad con el carrito
+        const productoConImagen = {
+            ...producto,
+            image: producto.image_url
+        }
+        agregarProducto(productoConImagen)
+        setCodigoEscaneado('')
+        setSugerencias([])
+        setMostrarSugerencias(false)
+    }
+
     // HOOK SCANNER
     const manejarCodigoEscaneado = async (codigo) => {
         if (!validarCodigoBarras(codigo)) {
@@ -67,15 +113,21 @@ export const Sales = () => {
             )
             return
         }
-        
+
+        // Buscar en productos locales primero
+        const productoLocal = productos.find(p => p.barcode === codigo)
+        if (productoLocal) {
+            const productoConImagen = { ...productoLocal, image: productoLocal.image_url }
+            agregarProducto(productoConImagen)
+            return
+        }
+
         try {
             await ejecutarPeticion(async () => {
                 const producto = await buscarProductoPorCodigo(codigo)
                 agregarProducto(producto)
-                // Producto agregado exitosamente - no necesitamos notificación ya que se ve en el carrito
             })
         } catch (error) {
-            // Manejar error de producto no encontrado
             if (error.message && error.message.includes('404')) {
                 mostrarModalPersonalizado(
                     'Producto no encontrado',
@@ -83,8 +135,6 @@ export const Sales = () => {
                     'error'
                 )
             } else {
-                // Los errores de stock se manejan en el hook useCart
-                // Otros errores generales
                 mostrarModalPersonalizado(
                     'Error',
                     'Ocurrió un error al buscar el producto. Intenta nuevamente.',
@@ -93,16 +143,14 @@ export const Sales = () => {
             }
         }
     }
-    
+
     const { isScanning } = useGlobalScanner(manejarCodigoEscaneado, {
         minLength: 8,
         timeout: 100,
         enabled: true,
         preventOnModal: true
     })
-    
-    // Ya no necesitamos auto-focus, el scanner global se encarga
-    
+
     // FUNCIONES
     const buscarProductoManual = async (codigo) => {
         if (!validarCodigoBarras(codigo)) {
@@ -139,7 +187,7 @@ export const Sales = () => {
             }
         }
     }
-    
+
     const finalizarVenta = async () => {
         if (carrito.length === 0) {
             mostrarModalPersonalizado(
@@ -151,7 +199,7 @@ export const Sales = () => {
         }
 
         setVendiendo(true)
-        
+
         try {
             await ejecutarPeticion(async () => {
                 const ventaData = {
@@ -162,14 +210,14 @@ export const Sales = () => {
                     })),
                     total: total
                 }
-                
+
                 const ventaCreada = await crearVenta(ventaData)
-                
+
                 setVentaCompletada({
                     ...ventaCreada,
                     productos: carrito
                 })
-                
+
                 vaciarCarrito()
                 setMostrarModal(true)
                 // Venta completada - el modal de venta completada mostrará la confirmación
@@ -181,32 +229,32 @@ export const Sales = () => {
                 'error'
             )
         }
-        
+
         setVendiendo(false)
     }
-    
+
     const manejarCambioCodigo = (e) => {
         setCodigoEscaneado(e.target.value)
     }
-    
+
     const manejarEnter = (e) => {
         if (e.key === 'Enter' && codigoEscaneado.trim()) {
             buscarProductoManual(codigoEscaneado.trim())
             setCodigoEscaneado('')
         }
     }
-    
+
     const manejarFocus = () => {
         if (campoCodigoRef.current) {
             campoCodigoRef.current.focus()
         }
     }
-    
+
     const cerrarModal = () => {
         setMostrarModal(false)
         setVentaCompletada(null)
     }
-    
+
     // Referencia para el ticket
     const ticketRef = useRef(null);
 
@@ -227,40 +275,68 @@ export const Sales = () => {
 
     return (
         <div className="sales-view">
-            <div className="sales-header">
-                <h1>Punto de Venta</h1>
-                <p>Escanea productos para agregar al carrito</p>
-            </div>
+            <header className="sales-header">
+                <div className="header-badge">Terminal de Venta</div>
+                <h1>Panel de Facturación</h1>
+                <p>Gestiona y procesa tus ventas con precisión</p>
+            </header>
             <div className="header-separator"></div>
-            
+
             <div className="sales-content">
-                {/* SCANNER */}
-                <div className="search-section">
+                {/* SCANNER Y BÚSQUEDA */}
+                <div className="search-section" style={{ position: 'relative' }}>
                     <input
                         ref={campoCodigoRef}
                         type="text"
-                        placeholder="Buscar código manualmente o escanear automáticamente..."
+                        placeholder="Buscar por nombre o código de barras..."
                         value={codigoEscaneado}
                         onChange={manejarCambioCodigo}
                         onKeyDown={manejarEnter}
+                        onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)}
                         className="barcode-input"
                     />
+
+                    {/* LISTA DE SUGERENCIAS */}
+                    {mostrarSugerencias && (
+                        <div className="suggestions-dropdown">
+                            {sugerencias.map(producto => (
+                                <div
+                                    key={producto.id}
+                                    className="suggestion-item"
+                                    onClick={() => seleccionarProducto(producto)}
+                                >
+                                    <div className="suggestion-image">
+                                        {producto.image_url ? (
+                                            <img src={producto.image_url} alt={producto.name} />
+                                        ) : (
+                                            <div className="no-img">📦</div>
+                                        )}
+                                    </div>
+                                    <div className="suggestion-info">
+                                        <span className="suggestion-name">{producto.name}</span>
+                                        <span className="suggestion-price">{formatearDinero(producto.price)}</span>
+                                    </div>
+                                    <span className="suggestion-stock">Stock: {producto.stock}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
-                
+
                 {/* INDICADOR DE CARGA */}
                 {cargando && (
                     <div className="notification info">
                         Procesando...
                     </div>
                 )}
-                
+
                 {/* INDICADOR DE ESCANEADO */}
                 {isScanning && (
                     <div className="notification info">
                         Escaneando código...
                     </div>
                 )}
-                
+
                 {/* CARRITO */}
                 <div className="cart-section">
                     <div className="cart-header">
@@ -271,7 +347,7 @@ export const Sales = () => {
                             </button>
                         )}
                     </div>
-                    
+
                     {carrito.length === 0 ? (
                         <div className="empty-cart">
                             <p>El carrito está vacío</p>
@@ -280,13 +356,25 @@ export const Sales = () => {
                         <div className="cart-items">
                             {carrito.map((item) => (
                                 <div key={item.id} className="cart-item">
-                                    <div className="item-image">IMG</div>
+                                    <div className="item-image">
+                                        {item.image ? (
+                                            <img src={item.image} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                    <path d="M21 15l-5-5L5 21"></path>
+                                                </svg>
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="item-info">
                                         <h3>{item.name}</h3>
                                         <p className="item-price">{formatearDinero(item.price)}</p>
                                     </div>
                                     <div className="quantity-controls">
-                                        <button 
+                                        <button
                                             className="qty-btn"
                                             onClick={() => cambiarCantidad(item.id, item.quantity - 1)}
                                             disabled={item.quantity <= 1}
@@ -294,7 +382,7 @@ export const Sales = () => {
                                             -
                                         </button>
                                         <span className="quantity">{item.quantity}</span>
-                                        <button 
+                                        <button
                                             className="qty-btn"
                                             onClick={() => cambiarCantidad(item.id, item.quantity + 1)}
                                         >
@@ -304,7 +392,7 @@ export const Sales = () => {
                                     <div className="item-total">
                                         {formatearDinero(item.price * item.quantity)}
                                     </div>
-                                    <button 
+                                    <button
                                         className="remove-btn"
                                         onClick={() => quitarProducto(item.id)}
                                     >
@@ -315,7 +403,7 @@ export const Sales = () => {
                         </div>
                     )}
                 </div>
-                
+
                 {/* TOTAL Y FINALIZAR */}
                 {carrito.length > 0 && (
                     <div className="total-section">
@@ -323,7 +411,7 @@ export const Sales = () => {
                             <span className="total-label">Total:</span>
                             <span className="total-amount">{formatearDinero(total)}</span>
                         </div>
-                        <button 
+                        <button
                             onClick={finalizarVenta}
                             disabled={vendiendo || carrito.length === 0}
                             className="btn-finalize"
@@ -333,7 +421,7 @@ export const Sales = () => {
                     </div>
                 )}
             </div>
-            
+
             {/* MODAL VENTA COMPLETADA */}
             {mostrarModal && ventaCompletada && (
                 <div className="modal-overlay">
@@ -352,22 +440,22 @@ export const Sales = () => {
                     </div>
                 </div>
             )}
-            
+
             {/* MODAL PERSONALIZADO PARA ERRORES */}
-                {modal.isOpen && (
-                    <div className="modal-overlay" onClick={cerrarModalPersonalizado}>
-                        <div className={`modal-content ${modal.type}`} onClick={e => e.stopPropagation()}>
-                            <button className="modal-close-btn" onClick={cerrarModalPersonalizado}>×</button>
-                            <div className={`modal-title ${modal.type}`}>{modal.title}</div>
-                            <div className="modal-message">{modal.message}</div>
-                            <div className="modal-footer">
-                                <button className="btn-modal-ok" onClick={cerrarModalPersonalizado}>
-                                    Aceptar
-                                </button>
-                            </div>
+            {modal.isOpen && (
+                <div className="modal-overlay" onClick={cerrarModalPersonalizado}>
+                    <div className={`modal-content ${modal.type}`} onClick={e => e.stopPropagation()}>
+                        <button className="modal-close-btn" onClick={cerrarModalPersonalizado}>×</button>
+                        <div className={`modal-title ${modal.type}`}>{modal.title}</div>
+                        <div className="modal-message">{modal.message}</div>
+                        <div className="modal-footer">
+                            <button className="btn-modal-ok" onClick={cerrarModalPersonalizado}>
+                                Aceptar
+                            </button>
                         </div>
                     </div>
-                )}
+                </div>
+            )}
         </div>
     )
 }

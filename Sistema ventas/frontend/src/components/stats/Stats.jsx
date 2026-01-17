@@ -111,7 +111,7 @@ export const Stats = () => {
         setCargandoAnalisis(true)
         try {
             const fechasAPI = dateFilter.prepararFechasParaAPI()
-            
+
             if (!fechasAPI) {
                 setCargandoAnalisis(false)
                 return
@@ -157,12 +157,12 @@ export const Stats = () => {
     }
 
     return (
-        <div className="stats-container">
-            {/* HEADER */}
-            <div className="header">
-                <h1>Estadísticas de Ventas</h1>
-                <p>Análisis completo del rendimiento del negocio</p>
-            </div>
+        <div className="stats-view">
+            <header className="stats-header">
+                <div className="header-badge">Inteligencia de Negocio</div>
+                <h2>Análisis de Rendimiento</h2>
+                <p>Visualiza el crecimiento y tendencias de tu empresa</p>
+            </header>
             <div className="header-separator"></div>
 
             {/* ESTADÍSTICAS PRINCIPALES */}
@@ -309,7 +309,7 @@ export const Stats = () => {
                                                     <span className="stock-label">
                                                         {producto.stock === 0 ? 'Sin stock disponible' :
                                                             producto.stock === 1 ? '1 unidad disponible' :
-                                                            `${producto.stock} unidades disponibles`}
+                                                                `${producto.stock} unidades disponibles`}
                                                     </span>
                                                 </div>
                                             </div>

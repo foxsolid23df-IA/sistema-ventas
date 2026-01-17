@@ -7,7 +7,7 @@ const Product = sequelize.define('Product', {
     price: { type: DataTypes.FLOAT, allowNull: false },      // Precio del producto
     stock: { type: DataTypes.INTEGER, allowNull: false },    // Stock disponible
     barcode: { type: DataTypes.STRING, unique: true },       // Código de barras único
-    image: { type: DataTypes.STRING }                        // URL o nombre de imagen (opcional)
+    image: { type: DataTypes.TEXT }                        // URL o Base64 de imagen (opcional)
 }, {
     timestamps: false,           // No agrega columnas createdAt/updatedAt automáticamente
     freezeTableName: true        // Usa el nombre 'Product' tal cual, sin pluralizar

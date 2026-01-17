@@ -11,6 +11,7 @@ const sequelize = require('./db/conexion');
 // Importar modelos para que Sequelize los registre antes de sync
 require('./models/Product');
 require('./models/Sale');
+const User = require('./models/User');
 
 // Crear la app de Express
 const app = express();
@@ -28,13 +29,15 @@ if (process.env.NODE_ENV === 'production') {
 } else {
     app.use(cors(corsOptions));
 }
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Importar y usar rutas
 const productRoutes = require('./routes/productRoutes');
 const saleRoutes = require('./routes/saleRoutes');
+const userRoutes = require('./routes/userRoutes');
 app.use('/api/products', productRoutes);
 app.use('/api/sales', saleRoutes);
+app.use('/api/users', userRoutes);
 
 // Puerto y host configurables por variable de entorno
 const PORT = process.env.PORT || 3001;
@@ -42,10 +45,23 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 async function startServer() {
     try {
-        await sequelize.sync(); // Sincroniza modelos con la base de datos
+        await sequelize.sync({ alter: true }); // Sincroniza modelos con la base de datos (altera tablas si es necesario)
+
+        // Crear administrador inicial si no existe
+        const adminExists = await User.findOne({ where: { profile: 'admin' } });
+        if (!adminExists) {
+            console.log('🌱 Creando administrador inicial...');
+            await User.create({
+                name: 'Administrador',
+                profile: 'admin',
+                pin: '1234'
+            });
+            console.log('✅ Administrador creado con PIN: 1234');
+        }
+
         // Iniciar servidor
         app.listen(PORT, () => {
-            console.log(`\u2705 Backend escuchando en http://${HOST}:${PORT}`);
+            console.log(`✅ Backend escuchando en http://${HOST}:${PORT}`);
         });
     } catch (err) {
         console.error('❌ Error al sincronizar la base de datos:', err.message);

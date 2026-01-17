@@ -114,12 +114,12 @@ export const Historial = () => {
     }, [dateFilter.fechaDesde, dateFilter.fechaHasta, ventas, filtrarPorFecha])
 
     return (
-        <div className="historial-container">
-            {/* 14. TÍTULO DE LA PÁGINA */}
-            <div className="historial-header">
-                <h1>Historial de Ventas</h1>
-                <p>Consulta todas las ventas realizadas</p>
-            </div>
+        <div className="historial-view">
+            <header className="historial-header">
+                <div className="header-badge">Registro de Ventas</div>
+                <h2>Auditoría de Historial</h2>
+                <p>Revisa y gestiona las transacciones realizadas</p>
+            </header>
             <div className="header-separator"></div>
 
             {/* 15. FILTROS POR FECHA */}
@@ -136,7 +136,7 @@ export const Historial = () => {
                         layout="horizontal"
                     />
                 </div>
-                
+
                 <div className="filtros-acciones">
                     <button
                         className="btn-limpiar"

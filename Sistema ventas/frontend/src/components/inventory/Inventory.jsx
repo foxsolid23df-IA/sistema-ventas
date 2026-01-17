@@ -1,618 +1,417 @@
-// ===== COMPONENTE INVENTARIO  =====
-// Este componente muestra una lista de productos con funciones básicas:
-// - Ver todos los productos en tarjetas
-// - Buscar productos por nombre
-// - Agregar nuevos productos
-// - Editar productos existentes
-// - Eliminar productos
+import React, { useState, useEffect, useRef } from 'react';
+import './Inventory.css';
+import { productService } from '../../services/productService';
+import Swal from 'sweetalert2';
 
-import React, { useState, useEffect, useRef } from 'react'
-import { obtenerProductos, actualizarProducto, eliminarProducto, crearProducto, formatearDinero, validarCodigoBarras } from '../../utils'
-import { useApi } from '../../hooks/useApi'
-import { useGlobalScanner } from '../../hooks/scanner'
-import './Inventory.css'
+// Icons
+import {
+    FiPlus,
+    FiSearch,
+    FiEdit2,
+    FiTrash2,
+    FiX,
+    FiSave,
+    FiUploadCloud,
+    FiImage
+} from 'react-icons/fi';
 
-export const Inventory = () => {
-    // HOOK API
-    const { cargando, ejecutarPeticion } = useApi()
+const Inventory = () => {
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
 
-    // ESTADOS PRINCIPALES DEL COMPONENTE
-    const [productos, setProductos] = useState([]) // Lista completa de productos
-    const [textoBusqueda, setTextoBusqueda] = useState('') // Texto del buscador
-    const [mostrarFormulario, setMostrarFormulario] = useState(false) // Si mostramos el formulario
-    const [editando, setEditando] = useState(null) // Producto que estamos editando (null = nuevo producto)
-    const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false) // Modal de confirmación para eliminar
-    const [productoAEliminar, setProductoAEliminar] = useState(null) // Producto que se va a eliminar
-    const [paginaActual, setPaginaActual] = useState(1) // Página actual para la paginación
-    const productosPorPagina = 12 // Cuántos productos mostrar por página
+    // Modal State
+    const [showModal, setShowModal] = useState(false);
+    const [editingProduct, setEditingProduct] = useState(null);
 
-    // ESTADO PARA EL MODAL DE ERRORES
-    const [modal, setModal] = useState({
-        isOpen: false,
-        title: '',
-        message: '',
-        type: 'info' // 'info', 'error', 'success', 'warning'
-    })
-
-    // REFERENCIA PARA EL CAMPO DE BÚSQUEDA (para auto-focus)
-    const campoBusquedaRef = useRef(null)
-    const esBorradoAutomatico = useRef(false) // Para distinguir entre borrado automático y manual
-
-    // ESTADO PARA MANTENER EL FILTRO ACTIVO (separado del campo de texto)
-    const [filtroActivo, setFiltroActivo] = useState('') // Este mantiene el filtro aunque se borre el campo
-
-    // Estado del formulario - aquí guardamos lo que escribe el usuario
-    const [nuevoProducto, setNuevoProducto] = useState({
+    // Form State
+    const [formData, setFormData] = useState({
         name: '',
+        barcode: '',
         price: '',
         stock: '',
-        barcode: '',
         image: ''
-    })
+    });
 
-    // CARGAR PRODUCTOS CUANDO SE ABRE EL COMPONENTE
+    // Image Upload State
+    const [previewImage, setPreviewImage] = useState(null);
+    const [dragActive, setDragActive] = useState(false);
+    const fileInputRef = useRef(null);
+
     useEffect(() => {
-        const cargarProductos = async () => {
-            try {
-                await ejecutarPeticion(async () => {
-                    const data = await obtenerProductos()
-                    setProductos(data)
-                })
-            } catch {
-                mostrarModal(
-                    'Error al cargar productos',
-                    'No se pudieron cargar los productos. Por favor, verifica tu conexión e intenta nuevamente.',
-                    'error'
-                )
-            }
+        fetchProducts();
+    }, []);
+
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            const data = await productService.getProducts();
+            setProducts(data);
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            Swal.fire('Error', 'No se pudieron cargar los productos', 'error');
+        } finally {
+            setLoading(false);
         }
-        cargarProductos()
-    }, [ejecutarPeticion])
+    };
 
-    // Ya no necesitamos auto-focus, usamos el scanner global
-
-    // SCANNER GLOBAL PARA DETECCIÓN AUTOMÁTICA
-    const manejarCodigoEscaneado = (codigo) => {
-        console.log('Código escaneado en inventario:', codigo)
-        // Aplicar filtro inmediatamente cuando se escanea
-        setFiltroActivo(codigo)
-        // Limpiar el campo de búsqueda manual
-        setTextoBusqueda('')
-    }
-    
-    const { isScanning } = useGlobalScanner(manejarCodigoEscaneado, {
-        minLength: 8,
-        timeout: 100,
-        enabled: !mostrarFormulario && !mostrarConfirmacion, // Solo activo cuando no hay modales
-        preventOnModal: true
-    })
-
-    // AUTO-CLEAR PARA CÓDIGOS DE BARRAS DEL CAMPO MANUAL
-    // Detecta códigos escaneados en el campo manual
-    useEffect(() => {
-        // Si es un código de barras (8+ dígitos numéricos), aplicar filtro y programar auto-borrado
-        if (textoBusqueda.length >= 8 && /^[0-9]+$/.test(textoBusqueda)) {
-            // APLICAR EL FILTRO INMEDIATAMENTE
-            setFiltroActivo(textoBusqueda)
-
-            // LUEGO BORRAR EL CAMPO (pero mantener el filtro)
-            const timer = setTimeout(() => {
-                esBorradoAutomatico.current = true // Marcar que es borrado automático
-                setTextoBusqueda('')
-                // Resetear la bandera después de un momento
-                setTimeout(() => {
-                    esBorradoAutomatico.current = false
-                }, 100)
-            }, 100) // Se borra después de 0.1 segundos
-
-            return () => clearTimeout(timer)
-        }
-        // Si no es un código de barras, actualizar filtro inmediatamente
-        else if (textoBusqueda !== '') {
-            setFiltroActivo(textoBusqueda)
-        }
-    }, [textoBusqueda])
-
-    // FUNCIÓN PARA MANEJAR CAMBIOS EN EL CAMPO DE BÚSQUEDA
-    // Detecta cuando el usuario escribe manualmente
-    const manejarCambioBusqueda = (e) => {
-        const nuevoTexto = e.target.value
-        setTextoBusqueda(nuevoTexto)
-
-        // Solo limpiar filtro si NO es un borrado automático
-        if (nuevoTexto === '' && !esBorradoAutomatico.current) {
-            setFiltroActivo('')
-        }
-    }
-
-    // FUNCIÓN PARA MANEJAR PRESIONES DE TECLA
-    // Maneja Enter para buscar manualmente si es necesario
-    const manejarTeclaPresionada = (e) => {
-        if (e.key === 'Enter') {
-            // Si hay texto en el campo, aplicar filtro inmediatamente
-            if (textoBusqueda.trim()) {
-                setFiltroActivo(textoBusqueda)
-            }
-        }
-    }
-
-    // RESETEAR PÁGINA CUANDO CAMBIA EL FILTRO ACTIVO
-    // Cuando cambia el filtro activo (no el campo de texto), volvemos a la primera página
-    useEffect(() => {
-        setPaginaActual(1)
-    }, [filtroActivo])
-
-    // FILTRAR PRODUCTOS SEGÚN EL FILTRO ACTIVO (no el campo de texto)
-    // Usa el filtro que se mantiene aunque se borre el campo
-    const productosFiltrados = productos.filter(producto => {
-        // Si no hay filtro activo, mostrar todos
-        if (!filtroActivo.trim()) return true
-
-        // Filtrar según el filtro activo guardado
-        return producto.name.toLowerCase().includes(filtroActivo.toLowerCase()) ||
-            producto.barcode?.includes(filtroActivo)
-    })
-
-    // LÓGICA DE PAGINACIÓN
-    // Calculamos qué productos mostrar en la página actual
-    const indiceInicio = (paginaActual - 1) * productosPorPagina
-    const indiceFin = indiceInicio + productosPorPagina
-    const productosEnPagina = productosFiltrados.slice(indiceInicio, indiceFin)
-    const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina)
-
-    // FUNCIÓN PARA CAMBIAR DE PÁGINA
-    const cambiarPagina = (nuevaPagina) => {
-        if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
-            setPaginaActual(nuevaPagina)
-        }
-    }
-
-    // FUNCIONES PARA EL MODAL DE ERRORES
-    const mostrarModal = (title, message, type = 'info') => {
-        setModal({
-            isOpen: true,
-            title,
-            message,
-            type
-        })
-    }
-
-    const cerrarModal = () => {
-        setModal({
-            isOpen: false,
-            title: '',
-            message: '',
-            type: 'info'
-        })
-    }
-
-    // FUNCIÓN PARA MANEJAR CAMBIOS EN EL FORMULARIO
-    // Cuando el usuario escribe en cualquier campo del formulario
-    const manejarCambio = (e) => {
-        const { name, value } = e.target
-        setNuevoProducto(prev => ({
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
             ...prev,
             [name]: value
-        }))
-    }
+        }));
+    };
 
-    // FUNCIÓN PARA GUARDAR UN PRODUCTO (NUEVO O EDITADO)
-    const guardarProducto = async (e) => {
-        e.preventDefault()
-
-        // Validaciones básicas
-        if (!nuevoProducto.name.trim()) {
-            mostrarModal(
-                'Error de validación',
-                'El nombre del producto es obligatorio.',
-                'error'
-            )
-            return
-        }
-
-        if (!nuevoProducto.price || parseFloat(nuevoProducto.price) <= 0) {
-            mostrarModal(
-                'Error de validación',
-                'El precio debe ser un número mayor a 0.',
-                'error'
-            )
-            return
-        }
-
-        if (!nuevoProducto.stock || parseInt(nuevoProducto.stock) < 0) {
-            mostrarModal(
-                'Error de validación',
-                'El stock debe ser un número igual o mayor a 0.',
-                'error'
-            )
-            return
-        }
-
-        // Validar código de barras si se proporciona
-        if (nuevoProducto.barcode && !validarCodigoBarras(nuevoProducto.barcode)) {
-            mostrarModal(
-                'Error de validación',
-                'El código de barras ingresado no es válido. Por favor, verifica que tenga el formato correcto.',
-                'error'
-            )
-            return
-        }
-
-        await ejecutarPeticion(async () => {
-            const datosProducto = {
-                ...nuevoProducto,
-                price: parseFloat(nuevoProducto.price),
-                stock: parseInt(nuevoProducto.stock)
-            }
-
-            try {
-                if (editando) {
-                    await actualizarProducto(editando.id, datosProducto)
-                    mostrarModal(
-                        'Producto actualizado',
-                        `El producto "${datosProducto.name}" se ha actualizado correctamente.`,
-                        'success'
-                    )
-                } else {
-                    await crearProducto(datosProducto)
-                    mostrarModal(
-                        'Producto creado',
-                        `El producto "${datosProducto.name}" se ha creado correctamente.`,
-                        'success'
-                    )
-                }
-
-                cerrarFormulario()
-                const productosActualizados = await obtenerProductos()
-                setProductos(productosActualizados)
-            } catch {
-                mostrarModal(
-                    'Error al guardar producto',
-                    editando ? 
-                        'No se pudo actualizar el producto. Por favor, intenta nuevamente.' :
-                        'No se pudo crear el producto. Por favor, intenta nuevamente.',
-                    'error'
-                )
-            }
-        })
-    }
-
-    // FUNCIÓN PARA ABRIR EL FORMULARIO EN MODO EDICIÓN
-    const editarProducto = (producto) => {
-        setEditando(producto)
-        setNuevoProducto({
-            name: producto.name,
-            price: producto.price.toString(),
-            stock: producto.stock.toString(),
-            barcode: producto.barcode || '',
-            image: producto.image || ''
-        })
-        setMostrarFormulario(true)
-    }
-
-    // FUNCIÓN PARA ELIMINAR UN PRODUCTO
-    const eliminarProductoHandler = async (id) => {
-        // En lugar de usar alert, abrimos el modal de confirmación
-        const producto = productos.find(p => p.id === id)
-        setProductoAEliminar(producto)
-        setMostrarConfirmacion(true)
-    }
-
-    // FUNCIÓN PARA CONFIRMAR LA ELIMINACIÓN
-    const confirmarEliminacion = async () => {
-        await ejecutarPeticion(async () => {
-            try {
-                await eliminarProducto(productoAEliminar.id)
-                const productosActualizados = await obtenerProductos()
-                setProductos(productosActualizados)
-                setMostrarConfirmacion(false)
-                
-                mostrarModal(
-                    'Producto eliminado',
-                    `El producto "${productoAEliminar.name}" se ha eliminado correctamente.`,
-                    'success'
-                )
-                
-                setProductoAEliminar(null)
-            } catch {
-                mostrarModal(
-                    'Error al eliminar producto',
-                    'No se pudo eliminar el producto. Por favor, intenta nuevamente.',
-                    'error'
-                )
-                setMostrarConfirmacion(false)
-                setProductoAEliminar(null)
-            }
-        })
-    }
-
-    // FUNCIÓN PARA CANCELAR LA ELIMINACIÓN
-    const cancelarEliminacion = () => {
-        setMostrarConfirmacion(false)
-        setProductoAEliminar(null)
-    }
-
-    // FUNCIÓN PARA CERRAR EL FORMULARIO Y LIMPIAR TODO
-    const cerrarFormulario = () => {
-        setMostrarFormulario(false)
-        setEditando(null)
-        setNuevoProducto({
+    const resetForm = () => {
+        setFormData({
             name: '',
+            barcode: '',
             price: '',
             stock: '',
-            barcode: '',
             image: ''
-        })
-    }
+        });
+        setPreviewImage(null);
+        setEditingProduct(null);
+    };
 
-    // AQUÍ RENDERIZAMOS TODO LO QUE VE EL USUARIO
+    const handleOpenModal = (product = null) => {
+        if (product) {
+            setEditingProduct(product);
+            setFormData({
+                name: product.name,
+                barcode: product.barcode || '',
+                price: product.price,
+                stock: product.stock,
+                image: product.image_url || ''
+            });
+            setPreviewImage(product.image_url || null);
+        } else {
+            resetForm();
+        }
+        setShowModal(true);
+    };
+
+    const handleCloseModal = () => {
+        setShowModal(false);
+        resetForm();
+    };
+
+    const processImage = (file) => {
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            Swal.fire('Error', 'El archivo debe ser una imagen', 'error');
+            return;
+        }
+
+        const maxSize = 2 * 1024 * 1024; // 2MB
+        if (file.size > maxSize) {
+            Swal.fire('Error', 'La imagen no debe superar los 2MB', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64String = reader.result;
+            // Basic optimization: if string is too long, we might warn, but for now we trust the limit
+            setPreviewImage(base64String);
+            setFormData(prev => ({ ...prev, image: base64String }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleDrag = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.type === "dragenter" || e.type === "dragover") {
+            setDragActive(true);
+        } else if (e.type === "dragleave") {
+            setDragActive(false);
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragActive(false);
+
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processImage(e.dataTransfer.files[0]);
+        }
+    };
+
+    const handleFileSelect = (e) => {
+        if (e.target.files && e.target.files[0]) {
+            processImage(e.target.files[0]);
+        }
+    };
+
+    const removeImage = (e) => {
+        e.stopPropagation();
+        setPreviewImage(null);
+        setFormData(prev => ({ ...prev, image: '' }));
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+
+        if (!formData.name || !formData.price || !formData.stock) {
+            Swal.fire('Error', 'Por favor completa los campos obligatorios', 'warning');
+            return;
+        }
+
+        try {
+            const productData = {
+                name: formData.name,
+                barcode: formData.barcode,
+                price: parseFloat(formData.price),
+                stock: parseInt(formData.stock),
+                image: formData.image
+            };
+
+            if (editingProduct) {
+                await productService.updateProduct(editingProduct.id, productData);
+                Swal.fire('Actualizado', 'Producto actualizado correctamente', 'success');
+            } else {
+                await productService.createProduct(productData);
+                Swal.fire('Creado', 'Producto creado correctamente', 'success');
+            }
+
+            handleCloseModal();
+            fetchProducts();
+        } catch (error) {
+            console.error('Error saving product:', error);
+            Swal.fire('Error', 'Error al guardar el producto', 'error');
+        }
+    };
+
+    const handleDelete = async (id) => {
+        const result = await Swal.fire({
+            title: '¿Estás seguro?',
+            text: "No podrás revertir esto",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await productService.deleteProduct(id);
+                Swal.fire('Eliminado', 'Producto eliminado', 'success');
+                fetchProducts();
+            } catch (error) {
+                console.error('Error deleting product:', error);
+                Swal.fire('Error', 'No se pudo eliminar el producto', 'error');
+            }
+        }
+    };
+
+    const filteredProducts = products.filter(product =>
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.barcode && product.barcode.includes(searchTerm))
+    );
+
     return (
-        <div className="inventory">
-            {/* TÍTULO DE LA PÁGINA */}
+        <div className="inventory-container">
             <div className="inventory-header">
-                <h2>Inventario de Productos</h2>
-                <p>Gestiona todos los productos de tu tienda</p>
-            </div>
-            <div className="header-separator"></div>
-
-            {/* BUSCADOR Y BOTÓN PARA AGREGAR */}
-            <div className="search-section">
-
-                <input
-                    ref={campoBusquedaRef}
-                    type="text"
-                    placeholder="Buscar productos o escanear código..."
-                    value={textoBusqueda}
-                    onChange={manejarCambioBusqueda}
-                    onKeyDown={manejarTeclaPresionada}
-                    className="barcode-input"
-                />
-
-                <button
-                    className="btn-nuevo"
-                    onClick={() => setMostrarFormulario(true)}
-                    disabled={cargando}
-                >
-                    {cargando ? 'Cargando...' : 'Nuevo Producto'}
+                <div className="header-content">
+                    <h1>Inventario</h1>
+                    <p>Gestiona tus productos y existencias</p>
+                </div>
+                <button className="add-btn" onClick={() => handleOpenModal()}>
+                    <FiPlus /> Nuevo Producto
                 </button>
-                
-                {/* Botón para limpiar filtros */}
-                {filtroActivo && (
-                    <button
-                        className="btn-clear-filter"
-                        onClick={() => {
-                            setFiltroActivo('')
-                            setTextoBusqueda('')
-                        }}
-                        style={{
-                            padding: '12px 20px',
-                            background: '#6c757d',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '1rem'
-                        }}
-                    >
-                        Limpiar Filtro
-                    </button>
-                )}
             </div>
 
-            {/* INDICADORES DE ESTADO */}
-            {cargando && (
-                <div className="loading-indicator">
-                    <p>Cargando productos...</p>
+            <div className="inventory-controls">
+                <div className="search-bar">
+                    <FiSearch className="search-icon" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o código..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="loading-state">Cargando inventario...</div>
+            ) : (
+                <div className="products-grid">
+                    {filteredProducts.length > 0 ? (
+                        filteredProducts.map(product => (
+                            <div key={product.id} className="product-card">
+                                <div className="product-image-container">
+                                    {product.image_url ? (
+                                        <img
+                                            src={product.image_url}
+                                            alt={product.name}
+                                            className="product-image"
+                                        />
+                                    ) : (
+                                        <div className="no-image-placeholder">
+                                            <FiImage size={32} />
+                                        </div>
+                                    )}
+                                    <span className={`stock-badge ${product.stock < 10 ? 'low-stock' : ''}`}>
+                                        Stock: {product.stock}
+                                    </span>
+                                </div>
+
+                                <div className="product-details">
+                                    <h3>{product.name}</h3>
+                                    <div className="product-meta">
+                                        <span className="price">${product.price.toFixed(2)}</span>
+                                        <span className="barcode">{product.barcode || 'Sin código'}</span>
+                                    </div>
+
+                                    <div className="actions">
+                                        <button
+                                            className="icon-btn edit"
+                                            onClick={() => handleOpenModal(product)}
+                                            title="Editar"
+                                        >
+                                            <FiEdit2 />
+                                        </button>
+                                        <button
+                                            className="icon-btn delete"
+                                            onClick={() => handleDelete(product.id)}
+                                            title="Eliminar"
+                                        >
+                                            <FiTrash2 />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="empty-state">
+                            <p>No hay productos registrados.</p>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* INDICADOR DE ESCANEADO */}
-            {isScanning && (
-                <div className="notification info" style={{textAlign: 'center', padding: '10px', background: '#e3f2fd', color: '#1976d2', borderRadius: '8px', margin: '10px 0'}}>
-                    Escaneando código...
-                </div>
-            )}
-
-            {/* FORMULARIO PARA AGREGAR/EDITAR (solo se muestra cuando mostrarFormulario es true) */}
-            {mostrarFormulario && (
+            {showModal && (
                 <div className="modal-overlay">
                     <div className="modal-content">
-                        <h3>{editando ? 'Editar Producto' : 'Nuevo Producto'}</h3>
-                        <form onSubmit={guardarProducto} className="product-form">
-                            <div className="form-group">
-                                <label>Nombre:</label>
+                        <div className="modal-header">
+                            <h2>{editingProduct ? 'Editar Producto' : 'Nuevo Producto'}</h2>
+                            <button className="close-btn" onClick={handleCloseModal}>
+                                <FiX />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="product-form">
+                            {/* Image Upload Area - Keeping Drag & Drop */}
+                            <div
+                                className={`image-upload-area ${dragActive ? 'drag-active' : ''}`}
+                                onDragEnter={handleDrag}
+                                onDragLeave={handleDrag}
+                                onDragOver={handleDrag}
+                                onDrop={handleDrop}
+                                onClick={() => fileInputRef.current.click()}
+                            >
                                 <input
-                                    type="text"
-                                    name="name"
-                                    value={nuevoProducto.name}
-                                    onChange={manejarCambio}
-                                    required
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleFileSelect}
+                                    style={{ display: 'none' }}
                                 />
+
+                                {previewImage ? (
+                                    <div className="image-preview-wrapper">
+                                        <img src={previewImage} alt="Preview" className="image-preview" />
+                                        <button
+                                            type="button"
+                                            className="remove-image-btn"
+                                            onClick={removeImage}
+                                        >
+                                            <FiX />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="upload-placeholder">
+                                        <FiUploadCloud size={48} />
+                                        <p>Arrastra una imagen o haz clic para subir</p>
+                                        <span>JPG, PNG (Max 2MB)</span>
+                                    </div>
+                                )}
                             </div>
-                            <div className="form-group">
-                                <label>Precio:</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    name="price"
-                                    value={nuevoProducto.price}
-                                    onChange={manejarCambio}
-                                    required
-                                />
+
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>Nombre del Producto *</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        placeholder="Ej. Coca Cola 600ml"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Código de Barras</label>
+                                    <input
+                                        type="text"
+                                        name="barcode"
+                                        value={formData.barcode}
+                                        onChange={handleInputChange}
+                                        placeholder="Escanear código..."
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Precio *</label>
+                                    <input
+                                        type="number"
+                                        name="price"
+                                        value={formData.price}
+                                        onChange={handleInputChange}
+                                        placeholder="0.00"
+                                        step="0.50"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label>Stock Inicial *</label>
+                                    <input
+                                        type="number"
+                                        name="stock"
+                                        value={formData.stock}
+                                        onChange={handleInputChange}
+                                        placeholder="0"
+                                        required
+                                    />
+                                </div>
                             </div>
-                            <div className="form-group">
-                                <label>Stock:</label>
-                                <input
-                                    type="number"
-                                    name="stock"
-                                    value={nuevoProducto.stock}
-                                    onChange={manejarCambio}
-                                    required
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Código de Barras:</label>
-                                <input
-                                    type="text"
-                                    name="barcode"
-                                    value={nuevoProducto.barcode}
-                                    onChange={manejarCambio}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>URL de Imagen:</label>
-                                <input
-                                    type="url"
-                                    name="image"
-                                    value={nuevoProducto.image}
-                                    onChange={manejarCambio}
-                                    placeholder="https://ejemplo.com/imagen.jpg"
-                                />
-                            </div>
-                            <div className="form-actions">
-                                <button type="submit" className="btn-guardar">
-                                    Guardar
-                                </button>
-                                <button type="button" onClick={cerrarFormulario} className="btn-cancelar">
+
+                            <div className="modal-actions">
+                                <button type="button" className="cancel-btn" onClick={handleCloseModal}>
                                     Cancelar
+                                </button>
+                                <button type="submit" className="save-btn">
+                                    <FiSave /> Guardar
                                 </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
-
-            {/* MODAL DE CONFIRMACIÓN PARA ELIMINAR */}
-            {mostrarConfirmacion && (
-                <div className="modal-overlay">
-                    <div className="modal-content modal-confirmacion">
-                        <h3>Confirmar Eliminación</h3>
-                        <p>¿Estás seguro de que quieres eliminar el producto <strong>"{productoAEliminar?.name}"</strong>?</p>
-                        <p className="advertencia">Esta acción no se puede deshacer.</p>
-                        <div className="form-actions">
-                            <button
-                                className="btn-confirmar"
-                                onClick={confirmarEliminacion}
-                            >
-                                Eliminar
-                            </button>
-                            <button
-                                className="btn-cancelar"
-                                onClick={cancelarEliminacion}
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* LISTA DE PRODUCTOS EN TARJETAS */}
-            <div className="products-grid">
-                {productosEnPagina.map(producto => (
-                    <div key={producto.id} className="product-card">
-                        {/* Imagen del producto */}
-                        <div className="product-image">
-                            {producto.image ? (
-                                <img
-                                    src={producto.image}
-                                    alt={producto.name}
-                                    onError={(e) => {
-                                        e.target.style.display = 'none'
-                                        e.target.nextSibling.style.display = 'flex'
-                                    }}
-                                />
-                            ) : null}
-                            <div className="product-image-placeholder" style={{display: producto.image ? 'none' : 'flex'}}>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                                    <path d="m21 15-5-5L5 21"/>
-                                </svg>
-                            </div>
-                        </div>
-
-                        {/* Información del producto */}
-                        <div className="product-content">
-                            <h3>{producto.name}</h3>
-                            <p><strong>Precio:</strong> {formatearDinero(producto.price)}</p>
-                            <p><strong>Stock:</strong> {producto.stock} unidades</p>
-                            {producto.barcode && <p><strong>Código:</strong> {producto.barcode}</p>}
-
-                            {/* Botones de acción */}
-                            <div className="product-actions">
-                                <button
-                                    onClick={() => editarProducto(producto)}
-                                    className="btn-edit"
-                                >
-                                    Editar
-                                </button>
-                                <button
-                                    onClick={() => eliminarProductoHandler(producto.id)}
-                                    className="btn-delete"
-                                >
-                                    Eliminar
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* CONTROLES DE PAGINACIÓN */}
-            {totalPaginas > 1 && (
-                <div className="paginacion">
-                    <button
-                        className="btn-pagina"
-                        onClick={() => cambiarPagina(paginaActual - 1)}
-                        disabled={paginaActual === 1}
-                    >
-                        Anterior
-                    </button>
-
-                    <span className="info-pagina">
-                        Página {paginaActual} de {totalPaginas}
-                    </span>
-
-                    <button
-                        className="btn-pagina"
-                        onClick={() => cambiarPagina(paginaActual + 1)}
-                        disabled={paginaActual === totalPaginas}
-                    >
-                        Siguiente
-                    </button>
-                </div>
-            )}
-
-            {/* MENSAJE CUANDO NO HAY PRODUCTOS */}
-            {productosFiltrados.length === 0 && (
-                <div className="no-products">
-                    {filtroActivo ?
-                        `No se encontraron productos que coincidan con "${filtroActivo}"` :
-                        'No hay productos en el inventario. ¡Agrega tu primer producto!'
-                    }
-                </div>
-            )}
-
-            {/* MODAL PERSONALIZADO PARA ERRORES */}
-            {modal.isOpen && (
-                <div className="modal-overlay">
-                    <div className={`modal-content modal-${modal.type}`}> 
-                        <div className="modal-header">
-                            <h3>{modal.title}</h3>
-                            <button className="modal-close" onClick={cerrarModal}>×</button>
-                        </div>
-                        <div className="modal-body">
-                            <p>{modal.message}</p>
-                        </div>
-                        <div className="modal-footer">
-                            <button className="btn-modal-ok" onClick={cerrarModal}>
-                                Aceptar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
-    )
-}
+    );
+};
+
+export { Inventory };
