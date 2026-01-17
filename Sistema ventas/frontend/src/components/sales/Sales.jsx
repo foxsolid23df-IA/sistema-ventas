@@ -344,7 +344,7 @@ export const Sales = () => {
         <div className="sales-view">
             <header className="sales-header">
                 <div className="header-badge">Terminal de Venta</div>
-                <h1>Panel de Facturación</h1>
+                <h1>AREA DE COBRO</h1>
                 <p>Gestiona y procesa tus ventas con precisión</p>
             </header>
             <div className="header-separator"></div>

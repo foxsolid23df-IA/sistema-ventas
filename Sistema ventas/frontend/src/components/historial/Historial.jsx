@@ -5,7 +5,11 @@ import React, { useState, useEffect, useCallback } from 'react'
 import './Historial.css'
 import { useApi } from '../../hooks/useApi'
 import { useDateFilter } from '../../hooks/useDateFilter'
-import { obtenerVentas, obtenerProductos, formatearDinero, formatearFechaHora, contarProductos } from '../../utils'
+import { useAuth } from '../../hooks/useAuth'
+import { formatearDinero, formatearFechaHora, contarProductos } from '../../utils'
+import { exportToExcel } from '../../utils/exportToExcel'
+import { salesService } from '../../services/salesService'
+import { productService } from '../../services/productService'
 import DateFilter from '../common/DateFilter'
 import '../common/DateFilter.css'
 
@@ -29,18 +33,42 @@ export const Historial = () => {
     // 5. HOOK PARA MANEJAR LLAMADAS AL BACKEND
     const { cargando, error, ejecutarPeticion, limpiarError } = useApi()
 
-    // 4. FUNCIÓN PARA CARGAR TODAS LAS VENTAS DESDE EL BACKEND
+    // 6. HOOK PARA VERIFICAR PERMISOS
+    const { canAccessReports } = useAuth()
+
+    // 4. FUNCIÓN PARA CARGAR TODAS LAS VENTAS DESDE SUPABASE
     const cargarVentasYProductos = async () => {
         limpiarError()
         try {
-            const [datosVentas, datosProductos] = await Promise.all([
-                ejecutarPeticion(() => obtenerVentas()),
-                ejecutarPeticion(() => obtenerProductos())
-            ])
-            setVentas(datosVentas)
-            setVentasFiltradas(datosVentas)
-            setProductos(datosProductos)
+            // Obtener ventas desde Supabase (con sale_items incluidos)
+            const ventasData = await ejecutarPeticion(() => salesService.getSales(1000))
+            
+            // Transformar ventas de Supabase al formato esperado
+            // Supabase devuelve sale_items como array anidado
+            const ventasTransformadas = ventasData.map(venta => ({
+                id: venta.id,
+                total: venta.total,
+                createdAt: venta.created_at,
+                items: (venta.sale_items || []).map(item => ({
+                    id: item.id,
+                    productId: item.product_id || null, // Puede no existir en sale_items
+                    productName: item.product_name || 'Producto sin nombre',
+                    name: item.product_name || 'Producto sin nombre', // Alias para compatibilidad
+                    barcode: item.barcode || '', // Puede no estar en sale_items
+                    quantity: item.quantity || 0,
+                    price: item.price || 0,
+                    total: item.total || 0
+                }))
+            }))
+
+            // Obtener productos desde Supabase
+            const productosData = await ejecutarPeticion(() => productService.getProducts())
+            
+            setVentas(ventasTransformadas)
+            setVentasFiltradas(ventasTransformadas)
+            setProductos(productosData)
         } catch (error) {
+            console.error('Error cargando ventas y productos:', error)
             setVentas([])
             setVentasFiltradas([])
             setProductos([])
@@ -103,6 +131,72 @@ export const Historial = () => {
         }
     }
 
+    // 12. FUNCIÓN PARA EXPORTAR A EXCEL
+    const exportarHistorialExcel = () => {
+        if (ventasFiltradas.length === 0) {
+            alert('No hay ventas para exportar');
+            return;
+        }
+
+        // Preparar datos para exportar
+        const datosExportar = ventasFiltradas.map((venta, index) => {
+            // Obtener nombres de productos de la venta
+            // IMPORTANTE: Supabase devuelve product_name (snake_case) en sale_items
+            const nombresProductos = venta.items
+                .map(item => {
+                    let nombre = '';
+                    
+                    // 1. Intentar desde product_name (snake_case desde Supabase)
+                    if (item.product_name) {
+                        nombre = item.product_name;
+                    }
+                    // 2. Intentar desde productName (camelCase transformado)
+                    else if (item.productName) {
+                        nombre = item.productName;
+                    }
+                    // 3. Intentar desde name (alias)
+                    else if (item.name) {
+                        nombre = item.name;
+                    }
+                    // 4. Si no hay nombre, buscar en la lista de productos usando product_id o productId
+                    else {
+                        const productId = item.product_id || item.productId;
+                        if (productId) {
+                            const producto = productos.find(p => p.id === productId);
+                            if (producto && producto.name) {
+                                nombre = producto.name;
+                            }
+                        }
+                    }
+                    
+                    // Si después de todo no hay nombre, usar valor por defecto
+                    if (!nombre || nombre.trim() === '') {
+                        nombre = 'Producto sin nombre';
+                    }
+                    
+                    const cantidad = item.quantity || 1;
+                    // Si hay más de 1 unidad, mostrar cantidad
+                    return cantidad > 1 ? `${nombre} (x${cantidad})` : nombre;
+                })
+                .join(', ');
+
+            return {
+                'N°': index + 1,
+                'Fecha': formatearFechaHora(venta.createdAt),
+                'Productos/Artículos': nombresProductos || 'Sin productos registrados',
+                'Cantidad de Productos': contarProductos(venta.items),
+                'Total': venta.total,
+                'Total Formateado': formatearDinero(venta.total)
+            };
+        });
+
+        // Generar nombre de archivo con fecha
+        const fechaActual = new Date().toISOString().split('T')[0];
+        const nombreArchivo = `historial_ventas_${fechaActual}`;
+
+        exportToExcel(datosExportar, nombreArchivo, 'Historial de Ventas');
+    }
+
     // 9. CARGAR VENTAS AL INICIAR EL COMPONENTE
     useEffect(() => {
         cargarVentasYProductos()
@@ -138,6 +232,16 @@ export const Historial = () => {
                 </div>
 
                 <div className="filtros-acciones">
+                    {canAccessReports && (
+                        <button
+                            className="btn-exportar"
+                            onClick={exportarHistorialExcel}
+                            disabled={ventasFiltradas.length === 0}
+                            title="Exportar historial a Excel"
+                        >
+                            📊 Exportar a Excel
+                        </button>
+                    )}
                     <button
                         className="btn-limpiar"
                         onClick={limpiarFiltros}

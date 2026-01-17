@@ -2,7 +2,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApi } from '../../hooks/useApi'
 import { useDateFilter } from '../../hooks/useDateFilter'
-import { obtenerEstadisticas, obtenerTopProductos, obtenerEstadisticasPorFecha, obtenerProductosPocoStock, formatearDinero } from '../../utils'
+import { useAuth } from '../../hooks/useAuth'
+import { formatearDinero } from '../../utils'
+import { exportMultipleSheets } from '../../utils/exportToExcel'
+import { salesService } from '../../services/salesService'
+import { productService } from '../../services/productService'
 import DateFilter from '../common/DateFilter'
 import '../common/DateFilter.css'
 import './Stats.css'
@@ -32,17 +36,19 @@ export const Stats = () => {
     const { datos: estadisticas, cargando: cargandoStats, ejecutarPeticion } = useApi()
     const { datos: topProductos, ejecutarPeticion: ejecutarTop } = useApi()
     const { datos: productosPocoStock, ejecutarPeticion: ejecutarPoco } = useApi()
+    const { canAccessReports } = useAuth()
 
     // FUNCIONES
     const cargarDatos = useCallback(async () => {
         try {
-            // Cargar estadísticas básicas
-            await ejecutarPeticion(obtenerEstadisticas)
+            // Cargar estadísticas básicas desde Supabase
+            await ejecutarPeticion(() => salesService.getStatistics())
 
             // Intentar cargar top productos y productos con poco stock
             try {
-                await ejecutarTop(obtenerTopProductos)
-            } catch {
+                await ejecutarTop(() => salesService.getTopProducts(5))
+            } catch (error) {
+                console.error('Error cargando top productos:', error)
                 mostrarModal(
                     'Advertencia',
                     'No se pudieron cargar los productos más vendidos.',
@@ -51,15 +57,17 @@ export const Stats = () => {
             }
 
             try {
-                await ejecutarPoco(obtenerProductosPocoStock)
-            } catch {
+                await ejecutarPoco(() => productService.getLowStockProducts(10))
+            } catch (error) {
+                console.error('Error cargando productos con poco stock:', error)
                 mostrarModal(
                     'Advertencia',
                     'No se pudieron cargar los productos con poco stock.',
                     'warning'
                 )
             }
-        } catch {
+        } catch (error) {
+            console.error('Error cargando estadísticas:', error)
             mostrarModal(
                 'Error al cargar datos',
                 'No se pudieron cargar las estadísticas principales. Por favor, verifica tu conexión e intenta nuevamente.',
@@ -124,10 +132,10 @@ export const Stats = () => {
             }
 
             if (fechasAPI.valido) {
-                const datos = await obtenerEstadisticasPorFecha(fechasAPI.fechaDesde, fechasAPI.fechaHasta)
+                const datos = await salesService.getStatisticsByDateRange(fechasAPI.fechaDesde, fechasAPI.fechaHasta)
                 setEstadisticasRango(datos)
             } else if (fechasAPI.fechaHasta) {
-                const datos = await obtenerEstadisticasPorFecha(undefined, fechasAPI.fechaHasta)
+                const datos = await salesService.getStatisticsByDateRange(undefined, fechasAPI.fechaHasta)
                 setEstadisticasRango(datos)
             } else {
                 setEstadisticasRango(null)
@@ -152,6 +160,93 @@ export const Stats = () => {
         // Ya no mostramos modal - el cambio se ve directamente en la interfaz
     }
 
+    // FUNCIÓN PARA EXPORTAR ESTADÍSTICAS A EXCEL
+    const exportarEstadisticasExcel = () => {
+        if (!estadisticas) {
+            alert('No hay estadísticas para exportar');
+            return;
+        }
+
+        const fechaActual = new Date().toISOString().split('T')[0];
+        
+        // Preparar hojas de datos
+        const sheets = [];
+
+        // Hoja 1: Estadísticas Generales
+        sheets.push({
+            name: 'Estadísticas Generales',
+            data: [
+                { 
+                    'Período': 'Hoy', 
+                    'Ingresos': estadisticas.ingresosDeHoy || 0, 
+                    'Ingresos Formateado': formatearDinero(estadisticas.ingresosDeHoy || 0),
+                    'Ventas': estadisticas.ventasDeHoy || 0 
+                },
+                { 
+                    'Período': 'Esta Semana', 
+                    'Ingresos': estadisticas.ingresosSemana || 0, 
+                    'Ingresos Formateado': formatearDinero(estadisticas.ingresosSemana || 0),
+                    'Ventas': estadisticas.ventasSemana || 0 
+                },
+                { 
+                    'Período': 'Este Mes', 
+                    'Ingresos': estadisticas.ingresosMes || 0, 
+                    'Ingresos Formateado': formatearDinero(estadisticas.ingresosMes || 0),
+                    'Crecimiento (%)': estadisticas.crecimiento || 0 
+                },
+                { 
+                    'Período': 'Total', 
+                    'Ingresos': estadisticas.ingresosTotales || 0, 
+                    'Ingresos Formateado': formatearDinero(estadisticas.ingresosTotales || 0),
+                    'Ventas': estadisticas.ventasTotales || 0 
+                }
+            ]
+        });
+
+        // Hoja 2: Top Productos
+        if (topProductos && topProductos.length > 0) {
+            sheets.push({
+                name: 'Top Productos',
+                data: topProductos.map((prod, index) => ({
+                    'Ranking': index + 1,
+                    'Producto/Artículo': prod.name,
+                    'Cantidad Vendida': prod.cantidadVendida,
+                    'Ingresos': prod.ingresos,
+                    'Ingresos Formateado': formatearDinero(prod.ingresos || 0)
+                }))
+            });
+        }
+
+        // Hoja 3: Productos con Poco Stock
+        if (productosPocoStock && productosPocoStock.length > 0) {
+            sheets.push({
+                name: 'Productos Poco Stock',
+                data: productosPocoStock.map(prod => ({
+                    'Producto/Artículo': prod.name,
+                    'Stock Actual': prod.stock,
+                    'Precio': prod.price,
+                    'Precio Formateado': formatearDinero(prod.price || 0)
+                }))
+            });
+        }
+
+        // Hoja 4: Estadísticas por Rango (si hay filtro activo)
+        if (estadisticasRango) {
+            sheets.push({
+                name: 'Estadísticas Rango',
+                data: [{
+                    'Fecha Inicio': estadisticasRango.fechaInicio,
+                    'Fecha Fin': estadisticasRango.fechaFin,
+                    'Ventas en Rango': estadisticasRango.ventasEnRango,
+                    'Ingresos en Rango': estadisticasRango.ingresosEnRango
+                }]
+            });
+        }
+
+        const nombreArchivo = `estadisticas_${fechaActual}`;
+        exportMultipleSheets(sheets, nombreArchivo);
+    }
+
     if (cargandoStats) {
         return <div className="loading">Cargando estadísticas...</div>
     }
@@ -160,8 +255,22 @@ export const Stats = () => {
         <div className="stats-view">
             <header className="stats-header">
                 <div className="header-badge">Inteligencia de Negocio</div>
-                <h2>Análisis de Rendimiento</h2>
-                <p>Visualiza el crecimiento y tendencias de tu empresa</p>
+                <div className="header-title-section">
+                    <div>
+                        <h2>Análisis de Rendimiento</h2>
+                        <p>Visualiza el crecimiento y tendencias de tu empresa</p>
+                    </div>
+                    {canAccessReports && (
+                        <button
+                            onClick={exportarEstadisticasExcel}
+                            className="btn-exportar-header"
+                            disabled={!estadisticas}
+                            title="Exportar estadísticas a Excel"
+                        >
+                            📊 Exportar Excel
+                        </button>
+                    )}
+                </div>
             </header>
             <div className="header-separator"></div>
 
@@ -224,6 +333,16 @@ export const Stats = () => {
                         />
                     </div>
                     <div className="date-buttons">
+                        {canAccessReports && (
+                            <button
+                                onClick={exportarEstadisticasExcel}
+                                className="btn-exportar"
+                                disabled={!estadisticas}
+                                title="Exportar estadísticas a Excel"
+                            >
+                                📊 Exportar Excel
+                            </button>
+                        )}
                         <button
                             onClick={analizarPeriodo}
                             className="search-btn"
