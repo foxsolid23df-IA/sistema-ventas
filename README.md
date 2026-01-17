@@ -1,4 +1,4 @@
-# 🚀 Proyectos Personales | Gino Robla
+# 🚀 Proyectos Personales | Gabino Trejo IDEA ORIGINAL DE Gino Robla solo realice modificaciones 
 
 <div align="center">
   <img src="https://readme-typing-svg.herokuapp.com?font=Fira+Code&pause=1000&color=2196F3&center=true&vCenter=true&width=600&lines=Full+Stack+Developer+%7C+MERN+Stack;Soluciones+reales+para+negocios+reales;Transformando+ideas+en+c%C3%B3digo" alt="Typing SVG" />
@@ -172,7 +172,7 @@ cd proyectos-personales/[nombre-proyecto]
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Gino_Robla-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/gino-robla-803a9337b/)
 [![GitHub](https://img.shields.io/badge/GitHub-GinoRobla-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/GinoRobla)
 
-**📍 Bahía Blanca, Argentina** | Disponible para trabajo remoto
+
 
 </div>
 
@@ -191,6 +191,6 @@ Tu apoyo motiva a seguir creando y compartiendo soluciones con la comunidad.
   
   **💡 Transformando problemas reales en soluciones digitales**
   
-  <sub>Hecho con ❤️ y mucho ☕ por Gino Robla</sub>
+  <sub>Hecho con ❤️ y mucho ☕ por Gabino Trejo</sub>
   
 </div>
