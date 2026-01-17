@@ -40,6 +40,7 @@ export const Routing = () => {
             <HashRouter>
                 <Routes>
                     <Route path="/login" element={<Login />} />
+                    <Route path="/register/:invitationCode?" element={<Login />} />
 
                     <Route path="/" element={<PrivateLayout><Sales /></PrivateLayout>} />
                     <Route path="/ventas" element={<PrivateLayout><Sales /></PrivateLayout>} />

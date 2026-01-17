@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import './Login.css';
 
 export const Login = () => {
     const { login, signUp, user } = useAuth();
+    const { invitationCode } = useParams(); // Para rutas como /register/ADMIN2024
 
     // UI State
     const [isRegistering, setIsRegistering] = useState(false);
@@ -16,8 +17,30 @@ export const Login = () => {
         email: '',
         password: '',
         storeName: '',
-        fullName: ''
+        fullName: '',
+        invitationCode: ''
     });
+
+    // Códigos de invitación válidos (solo para área administrativa)
+    // Estos códigos solo pueden ser proporcionados por el área administrativa
+    const VALID_INVITATION_CODES = [
+        'ADMIN2024',
+        'POS-REG-2024',
+        'BIZ-PRO-2024'
+        // Agregar más códigos según sea necesario
+        // TODO: En el futuro, mover a una tabla en Supabase para mejor gestión
+    ];
+
+    // Si hay código de invitación en la URL, activar modo registro y pre-llenar el código
+    useEffect(() => {
+        if (invitationCode) {
+            setIsRegistering(true);
+            setFormData(prev => ({
+                ...prev,
+                invitationCode: invitationCode.toUpperCase()
+            }));
+        }
+    }, [invitationCode]);
 
     if (user) {
         return <Navigate to="/" />;
@@ -38,6 +61,13 @@ export const Login = () => {
 
         try {
             if (isRegistering) {
+                // Validar código de invitación
+                if (!formData.invitationCode || !VALID_INVITATION_CODES.includes(formData.invitationCode.toUpperCase())) {
+                    setError('Código de invitación inválido. Solo el área administrativa puede proporcionar códigos de registro.');
+                    setLoading(false);
+                    return;
+                }
+
                 await signUp(formData.email, formData.password, formData.storeName, formData.fullName);
                 // Signup usually logs in automatically in Supabase, or requires email confirmation.
                 // If auto-login, the 'user' effect will redirect. 
@@ -69,6 +99,30 @@ export const Login = () => {
                 <form onSubmit={handleSubmit} className="login-form">
                     {isRegistering && (
                         <>
+                            <div className="form-group">
+                                <label>Código de Invitación *</label>
+                                <input
+                                    type="text"
+                                    name="invitationCode"
+                                    value={formData.invitationCode}
+                                    onChange={handleChange}
+                                    placeholder="Código proporcionado por administración"
+                                    required
+                                    style={{ 
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '2px',
+                                        fontWeight: '600'
+                                    }}
+                                />
+                                <small style={{ 
+                                    color: '#888', 
+                                    fontSize: '12px', 
+                                    marginTop: '4px',
+                                    display: 'block'
+                                }}>
+                                    Solo disponible para el área administrativa
+                                </small>
+                            </div>
                             <div className="form-group">
                                 <label>Nombre del Negocio</label>
                                 <input
@@ -124,18 +178,22 @@ export const Login = () => {
                     </button>
                 </form>
 
-                <div className="login-footer">
-                    <p>
-                        {isRegistering ? '¿Ya tienes cuenta?' : '¿No tienes cuenta?'}
-                        <button
-                            type="button"
-                            className="toggle-auth-btn"
-                            onClick={() => setIsRegistering(!isRegistering)}
-                        >
-                            {isRegistering ? 'Inicia Sesión' : 'Regístrate'}
-                        </button>
-                    </p>
-                </div>
+                {/* Ocultar el enlace de registro público - Solo área administrativa puede registrar */}
+                {/* El registro solo está disponible con código de invitación */}
+                {isRegistering && (
+                    <div className="login-footer">
+                        <p>
+                            ¿Ya tienes cuenta?
+                            <button
+                                type="button"
+                                className="toggle-auth-btn"
+                                onClick={() => setIsRegistering(false)}
+                            >
+                                Inicia Sesión
+                            </button>
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );
