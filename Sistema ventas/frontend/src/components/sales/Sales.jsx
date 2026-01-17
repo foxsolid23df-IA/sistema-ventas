@@ -1,17 +1,21 @@
 // ===== COMPONENTE PUNTO DE VENTA OPTIMIZADO =====
 import React, { useState, useEffect, useRef } from 'react'
 import TicketVenta from './TicketVenta'
+import CameraScanner from '../common/CameraScanner'
 import { formatearDinero, validarCodigoBarras } from '../../utils'
+import { buscarProductoPorCodigo } from '../../utils/api'
 import { productService } from '../../services/productService'
 import { salesService } from '../../services/salesService'
 import { useApi } from '../../hooks/useApi'
 import { useCart } from '../../hooks/useCart'
 import { useGlobalScanner } from '../../hooks/scanner'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import './Sales.css'
 
 export const Sales = () => {
     // HOOKS PERSONALIZADOS
     const { cargando, ejecutarPeticion } = useApi()
+    const { isMobile, isTouchDevice } = useIsMobile()
     const mostrarError = (mensaje, esAdvertencia = false) => {
         if (mensaje.includes('sin stock') || mensaje.includes('No hay más stock')) {
             mostrarModalPersonalizado('Sin stock disponible', mensaje, 'warning')
@@ -28,6 +32,7 @@ export const Sales = () => {
     const [vendiendo, setVendiendo] = useState(false)
     const [mostrarModal, setMostrarModal] = useState(false)
     const [ventaCompletada, setVentaCompletada] = useState(null)
+    const [mostrarCameraScanner, setMostrarCameraScanner] = useState(false)
 
     // ESTADOS PARA BÚSQUEDA POR NOMBRE
     const [productos, setProductos] = useState([])
@@ -262,6 +267,61 @@ export const Sales = () => {
         setVentaCompletada(null)
     }
 
+    // MANEJAR ESCANEO POR CÁMARA
+    const manejarEscaneoCamara = async (codigo) => {
+        // Limpiar el código (remover espacios)
+        const codigoLimpio = codigo.trim()
+
+        if (!codigoLimpio) return
+
+        // Validar formato de código de barras
+        if (!validarCodigoBarras(codigoLimpio)) {
+            mostrarModalPersonalizado(
+                'Código inválido',
+                'El código escaneado no tiene un formato válido.',
+                'error'
+            )
+            return
+        }
+
+        // Buscar primero en productos locales
+        const productoLocal = productos.find(p =>
+            p.barcode === codigoLimpio ||
+            p.barcode === codigoLimpio.replace(/^0+/, '') // Sin ceros iniciales
+        )
+
+        if (productoLocal) {
+            const productoConImagen = { ...productoLocal, image: productoLocal.image_url }
+            agregarProducto(productoConImagen)
+            mostrarModalPersonalizado('Producto agregado', `${productoLocal.name} añadido al carrito`, 'success')
+            return
+        }
+
+        // Si no se encuentra localmente, buscar en el servidor
+        try {
+            await ejecutarPeticion(async () => {
+                const producto = await productService.getProductByBarcode(codigoLimpio)
+                if (producto) {
+                    const productoConImagen = { ...producto, image: producto.image_url }
+                    agregarProducto(productoConImagen)
+                    mostrarModalPersonalizado('Producto agregado', `${producto.name} añadido al carrito`, 'success')
+                } else {
+                    mostrarModalPersonalizado(
+                        'Producto no encontrado',
+                        `No se encontró un producto con el código: ${codigoLimpio}`,
+                        'error'
+                    )
+                }
+            })
+        } catch (error) {
+            mostrarModalPersonalizado(
+                'Producto no encontrado',
+                `No se encontró un producto con el código escaneado: ${codigoLimpio}`,
+                'error'
+            )
+        }
+    }
+
     // Referencia para el ticket
     const ticketRef = useRef(null);
 
@@ -292,16 +352,54 @@ export const Sales = () => {
             <div className="sales-content">
                 {/* SCANNER Y BÚSQUEDA */}
                 <div className="search-section" style={{ position: 'relative' }}>
-                    <input
-                        ref={campoCodigoRef}
-                        type="text"
-                        placeholder="Buscar por nombre o código de barras..."
-                        value={codigoEscaneado}
-                        onChange={manejarCambioCodigo}
-                        onKeyDown={manejarEnter}
-                        onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)}
-                        className="barcode-input"
-                    />
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        <input
+                            ref={campoCodigoRef}
+                            type="text"
+                            placeholder="Buscar por nombre o código de barras..."
+                            value={codigoEscaneado}
+                            onChange={manejarCambioCodigo}
+                            onKeyDown={manejarEnter}
+                            onBlur={() => setTimeout(() => setMostrarSugerencias(false), 200)}
+                            className="barcode-input"
+                            style={{ flex: 1 }}
+                        />
+                        <button
+                            onClick={() => setMostrarCameraScanner(true)}
+                            className="btn-camera-scanner"
+                            type="button"
+                            title="Escanear código con cámara"
+                            style={{
+                                padding: '12px 20px',
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'all 0.3s ease',
+                                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'translateY(-2px)'
+                                e.currentTarget.style.boxShadow = '0 6px 12px rgba(0, 0, 0, 0.15)'
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'translateY(0)'
+                                e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)'
+                            }}
+                        >
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                                <circle cx="12" cy="13" r="4"></circle>
+                            </svg>
+                            Cámara
+                        </button>
+                    </div>
 
                     {/* LISTA DE SUGERENCIAS */}
                     {mostrarSugerencias && (
@@ -463,6 +561,13 @@ export const Sales = () => {
                     </div>
                 </div>
             )}
+
+            {/* MODAL SCANNER DE CÁMARA */}
+            <CameraScanner
+                isOpen={mostrarCameraScanner}
+                onClose={() => setMostrarCameraScanner(false)}
+                onScan={manejarEscaneoCamara}
+            />
         </div>
     )
 }

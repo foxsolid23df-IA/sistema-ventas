@@ -62,5 +62,17 @@ export const productService = {
             .eq('id', id);
 
         if (error) throw error;
+    },
+
+    // Buscar producto por código de barras
+    getProductByBarcode: async (barcode) => {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('barcode', barcode)
+            .maybeSingle(); // Retorna null si no encuentra, en lugar de error
+
+        if (error) throw error;
+        return data;
     }
 };
