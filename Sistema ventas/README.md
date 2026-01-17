@@ -1,202 +1,461 @@
-# 🛒 Sistema POS - Punto de Venta Web y Escritorio
+# 🛒 Sistema de Ventas POS - SaaS
 
-> **Sistema completo de punto de venta con escaneo de códigos de barras, gestión de inventario y estadísticas en tiempo real**
+Sistema de Punto de Venta (POS) profesional desarrollado con React y Supabase, diseñado para pequeños y medianos negocios.
 
-![Sistema POS - Escaneo de Códigos](./screenshots/ventas.gif)
-*Demostración en vivo: escaneando códigos de barras y agregando productos al carrito automáticamente*
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![License](https://img.shields.io/badge/license-Private-red)
+![React](https://img.shields.io/badge/React-19.1-61DAFB?logo=react)
+![Supabase](https://img.shields.io/badge/Supabase-Backend-3ECF8E?logo=supabase)
 
-## 💻 Versión de Escritorio (NUEVO)
+## 🌐 Demo en Vivo
 
-**¡Ahora disponible como aplicación de escritorio!**
-
-- ✅ **Instalador de Windows** - Un solo archivo .exe
-- ✅ **100% Offline** - No requiere internet para funcionar
-- ✅ **Datos locales** - Base de datos SQLite incluida
-- ✅ **Fácil distribución** - Instala en cualquier PC sin dependencias
-
-**Ver:** [Manual de Electron](./MANUAL.md) para instrucciones de instalación y distribución.
-
-## ✨ Características Principales
-
-🛍️ **Sistema de Ventas** - Carrito interactivo con validación de stock  
-📦 **Gestión de Inventario** - CRUD completo de productos  
-📊 **Estadísticas Avanzadas** - Dashboard con métricas y reportes  
-📱 **Escaneo de Códigos** - Compatible con lectores físicos y app móvil  
-🔍 **Búsqueda Inteligente** - Por nombre, código o escaneo automático  
-📈 **Historial Completo** - Registro detallado de todas las ventas  
+**URL de Producción:** https://sistema-ventas-topaz.vercel.app
 
 ---
 
-## 🚀 Instalación Rápida
+## 📋 Tabla de Contenidos
 
+- [Características](#-características)
+- [Arquitectura](#-arquitectura)
+- [Tecnologías](#-tecnologías)
+- [Instalación](#-instalación)
+- [Configuración de Supabase](#-configuración-de-supabase)
+- [Estructura del Proyecto](#-estructura-del-proyecto)
+- [Módulos del Sistema](#-módulos-del-sistema)
+- [Sistema de Autenticación](#-sistema-de-autenticación)
+- [API de Servicios](#-api-de-servicios)
+- [Despliegue](#-despliegue)
+- [Esquema de Base de Datos](#-esquema-de-base-de-datos)
+
+---
+
+## ✨ Características
+
+### Punto de Venta
+- ✅ Escaneo de códigos de barras (automático y manual)
+- ✅ Búsqueda de productos por nombre en tiempo real
+- ✅ Carrito de compras dinámico
+- ✅ Impresión de tickets de venta
+- ✅ Actualización automática de inventario
+
+### Inventario
+- ✅ CRUD completo de productos
+- ✅ Gestión de stock
+- ✅ Imágenes de productos (Base64)
+- ✅ Subida de imágenes por drag & drop
+- ✅ Validación de campos
+
+### Gestión de Usuarios
+- ✅ Sistema multi-rol (Propietario, Admin, Gerente, Cajero)
+- ✅ Autenticación por PIN para empleados
+- ✅ Bloqueo de pantalla por seguridad
+- ✅ Permisos diferenciados por rol
+
+### Corte de Caja
+- ✅ Cierre de turno por empleado
+- ✅ Cierre diario del negocio
+- ✅ Arqueo de caja (esperado vs contado)
+- ✅ Ticket de corte imprimible con detalle de productos
+- ✅ Registro de diferencias y observaciones
+
+### Seguridad
+- ✅ Autenticación con Supabase Auth
+- ✅ Row Level Security (RLS) en todas las tablas
+- ✅ Aislamiento de datos por tienda (multi-tenant)
+- ✅ Verificación de contraseña para acceso de propietario
+
+---
+
+## 🏗 Arquitectura
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    FRONTEND                          │
+│              React + Vite + CSS                      │
+│                                                      │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │  Sales  │ │Inventory│ │  Users  │ │CashCut  │   │
+│  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘   │
+│       │           │           │           │         │
+│  ┌────┴───────────┴───────────┴───────────┴────┐   │
+│  │              Services Layer                  │   │
+│  │  productService | salesService | staffService│   │
+│  └────────────────────┬────────────────────────┘   │
+└───────────────────────┼─────────────────────────────┘
+                        │ HTTPS
+┌───────────────────────┼─────────────────────────────┐
+│                       ▼                              │
+│                  SUPABASE                            │
+│  ┌─────────────────────────────────────────────┐   │
+│  │              Authentication                   │   │
+│  │         (Email/Password + Sessions)           │   │
+│  └─────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────┐   │
+│  │              PostgreSQL                       │   │
+│  │  profiles | products | sales | staff | cuts   │   │
+│  │           + Row Level Security (RLS)          │   │
+│  └─────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🛠 Tecnologías
+
+### Frontend
+| Tecnología | Versión | Uso |
+|------------|---------|-----|
+| React | 19.1.1 | Framework UI |
+| Vite | 7.1.1 | Build tool |
+| React Router | 7.8.0 | Navegación |
+| SweetAlert2 | 11.26 | Alertas |
+| React Icons | 5.5.0 | Iconografía |
+
+### Backend (Supabase)
+| Servicio | Uso |
+|----------|-----|
+| Supabase Auth | Autenticación |
+| Supabase Database | PostgreSQL |
+| Row Level Security | Seguridad multi-tenant |
+
+### Despliegue
+| Plataforma | Uso |
+|------------|-----|
+| Vercel | Hosting frontend |
+| Supabase Cloud | Backend as a Service |
+
+---
+
+## 📦 Instalación
+
+### Prerrequisitos
+- Node.js 18+
+- npm o yarn
+- Cuenta de Supabase
+
+### Pasos
+
+1. **Clonar el repositorio**
 ```bash
-# 1️⃣ Clonar repositorio
-git clone https://github.com/GinoRobla/proyectos-personales.git
-cd "proyectos-personales/Sistema ventas"
-
-# 2️⃣ Instalar dependencias
-cd backend && npm install
-cd ../frontend && npm install
-
-# 3️⃣ Configurar backend
-cd ../backend && cp .env.example .env
-
-# 4️⃣ Iniciar backend (Terminal 1)
-node index.js
-
-# 5️⃣ Poblar con datos de ejemplo (Terminal 2)
-node db/seedCompleto.js
-
-# 6️⃣ Iniciar frontend (Terminal 3)
-cd ../frontend && npm run dev
+git clone https://github.com/foxsolid23df-IA/sistema-ventas.git
+cd sistema-ventas
 ```
 
-**🎉 ¡Listo! Abre http://localhost:5173**
-
----
-
-## 📱 Escaneo de Códigos de Barras
-
-### Opción 1: Lector Físico
-Conecta cualquier lector USB/Bluetooth y funciona automáticamente.
-
-### Opción 2: App Móvil (Barcode to PC Server)
-
-1. **📲 Instalar en el celular:**
-   - Descargar "Barcode to PC Server" desde Play Store/App Store
-
-2. **💻 Instalar en la PC:**
-   - Descargar desde [barcodetopc.com](https://barcodetopc.com)
-
-3. **📶 Configuración:**
-   - Conectar ambos dispositivos a la **misma red WiFi**
-   - Iniciar la app en el celular
-   - Abrir el programa en la PC
-   - ¡Ya puedes escanear desde el móvil!
-
-### 🎯 Funcionamiento Automático
-- Escanea cualquier código → se busca automáticamente el producto
-- No necesitas hacer clic en campos de búsqueda
-- El producto se agrega al carrito instantáneamente
-
----
-
-## 🖥️ Interfaz y Navegación
-
-### 🏠 **Ventas**
-![Sistema de Ventas - Carrito](./screenshots/ventas.gif)
-*Demostración del carrito de compras interactivo en funcionamiento*
-- Búsqueda y selección de productos
-- Carrito de compras interactivo
-- Finalización de ventas con impresión
-
-### 📦 **Inventario**  
-![Gestión de Inventario](./screenshots/inventario.png)
-- Agregar, editar y eliminar productos
-- Control de stock automático
-- Imágenes de productos
-
-### 📊 **Estadísticas**
-![Dashboard de Estadísticas](./screenshots/estadisticas2.png)
-- Ganancias de hoy/semana/mes
-- Top productos más vendidos
-- Análisis por rangos de fecha
-- Productos con poco stock
-
-### 📋 **Historial**
-![Historial de Ventas](./screenshots/historial.png)
-![Filtrado y Paginación](./screenshots/historial2.png)
-- Registro completo de ventas
-- Filtrado por fechas
-- Detalles de cada venta
-- Paginación inteligente
-
----
-
-## ⚙️ Arquitectura y Tecnologías
-
-### 🎯 **Stack Principal**
-
-#### **Frontend - React + Vite**
-- **React 19**: Framework para UI con hooks personalizados (`useApi`, `useCart`, `useScanner`)
-- **Vite**: Bundler rápido con hot reload para desarrollo ágil
-- **CSS3 Puro**: Estilos optimizados sin dependencias externas
-
-#### **Backend - Node.js + Express**
-- **Express 5**: API REST con arquitectura modular (Controllers/Services/Models)
-- **Sequelize ORM**: Abstracción de base de datos con soporte dual SQLite/PostgreSQL
-
-#### **Base de Datos - Estrategia Dual**
-- **SQLite**: Para desarrollo local, sin instalaciones externas
-- **PostgreSQL**: Preparado para producción, escalabilidad empresarial
-
-### 🖥️ **Diseñado para PC/Notebook**
-
-#### **Optimización Desktop**
-- **Pantallas grandes**: Layout optimizado para resoluciones 1580px+ 
-- **Responsive notebook**: Adaptación específica para pantallas <1675px (3→2 columnas en inventario)
-- **No mobile**: Interfaz pensada para uso profesional en escritorio
-- **Teclado físico**: Integración perfecta con lectores de códigos USB/Bluetooth
-
-### ⚡ **Experiencia Sin Fricción**
-
-#### **Auto-enfoque Inteligente**
-- **Inputs activos**: Los campos de búsqueda se enfocan automáticamente
-- **Escaneo directo**: Los códigos se capturan sin hacer clic en campos
-- **Limpieza automática**: Cada escaneo borra el contenido anterior
-- **Mínimo mouse**: El usuario puede operar casi completamente con el lector
-
-#### **Flujo Optimizado**
-```
-🔍 Escanear código → 🎯 Producto encontrado → ➕ Al carrito → 🔍 Listo para siguiente
+2. **Instalar dependencias del frontend**
+```bash
+cd frontend
+npm install
 ```
 
-### 🔧 **Optimizaciones de Rendimiento**
+3. **Configurar variables de entorno**
+```bash
+cp .env.example .env
+```
 
-#### **Paginación Server-Side**
-- **Historial**: Solo 10 ventas por página para carga rápida
-- **Sin lag**: Navegación fluida entre páginas
-- **Memoria eficiente**: No carga miles de registros innecesarios
+Editar `.env`:
+```env
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=tu-clave-anonima
+```
 
-#### **Búsqueda Instantánea**
-- **Tiempo real**: Resultados mientras escribes
-- **Índices optimizados**: Búsqueda por nombre y código de barras
-- **Validación automática**: Stock verificado antes de agregar al carrito
-
-#### **Gestión de Stock Automática**
-- **Transacciones atómicas**: Venta + reducción de stock en una operación
-- **Validaciones**: Previene sobreventa automáticamente
-- **Actualización instantánea**: Los cambios se reflejan inmediatamente  
-
----
-
-## 📚 Documentación Adicional
-
-- 📖 **[Documentación de API](./DOCUMENTACION_API.md)** - Endpoints completos
-- 🔧 **Configuración avanzada** - Variables de entorno
-- 🧪 **Datos de prueba** - Scripts de seeders incluidos
+4. **Iniciar en desarrollo**
+```bash
+npm run dev
+```
 
 ---
 
-## 🎯 Estado del Proyecto
+## 🔧 Configuración de Supabase
 
-✅ **Funcional al 100%** - Listo para uso en entornos reales  
-✅ **Base de datos local** - Sin dependencias externas  
-✅ **Responsive design** - Optimizado para escritorio  
-✅ **Escaneo automático** - Integración perfecta con códigos de barras  
+### 1. Crear proyecto en Supabase
+1. Ve a [supabase.com](https://supabase.com)
+2. Crea un nuevo proyecto
+3. Copia la URL y Anon Key
+
+### 2. Ejecutar el esquema SQL
+Ve a **SQL Editor** en Supabase y ejecuta el contenido de `supabase_schema.sql`
+
+### 3. Configurar autenticación
+1. Ve a **Authentication > Settings**
+2. Desactiva "Email Confirmations" para desarrollo
+3. Configura redirect URLs si es necesario
+
+---
+
+## 📁 Estructura del Proyecto
+
+```
+Sistema ventas/
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── auth/
+│   │   │   │   ├── Login.jsx
+│   │   │   │   ├── Login.css
+│   │   │   │   ├── LockScreen.jsx
+│   │   │   │   └── LockScreen.css
+│   │   │   ├── sales/
+│   │   │   │   ├── Sales.jsx
+│   │   │   │   ├── Sales.css
+│   │   │   │   └── TicketVenta.jsx
+│   │   │   ├── inventory/
+│   │   │   │   ├── Inventory.jsx
+│   │   │   │   └── Inventory.css
+│   │   │   ├── cashcut/
+│   │   │   │   ├── CashCut.jsx
+│   │   │   │   └── CashCut.css
+│   │   │   ├── admin/
+│   │   │   │   ├── UserManager.jsx
+│   │   │   │   └── UserManager.css
+│   │   │   └── sidebar/
+│   │   │       ├── Sidebar.jsx
+│   │   │       └── Sidebar.css
+│   │   ├── services/
+│   │   │   ├── productService.js
+│   │   │   ├── salesService.js
+│   │   │   ├── staffService.js
+│   │   │   └── cashCutService.js
+│   │   ├── hooks/
+│   │   │   ├── useAuth.jsx
+│   │   │   ├── useApi.jsx
+│   │   │   ├── useCart.jsx
+│   │   │   └── scanner.jsx
+│   │   ├── router/
+│   │   │   └── routing.jsx
+│   │   ├── supabase.js
+│   │   ├── App.jsx
+│   │   ├── App.css
+│   │   └── main.jsx
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── vercel.json
+├── supabase_schema.sql
+└── README.md
+```
+
+---
+
+## 📱 Módulos del Sistema
+
+### 1. Punto de Venta (`/`)
+- Escaneo de códigos de barras
+- Búsqueda de productos por nombre
+- Carrito de compras
+- Finalización de venta
+- Impresión de ticket
+
+### 2. Inventario (`/inventario`)
+- Lista de productos
+- Agregar/Editar/Eliminar productos
+- Gestión de stock
+- Subida de imágenes
+
+### 3. Historial (`/historial`)
+- Registro de ventas
+- Filtros por fecha
+- Detalle de cada venta
+
+### 4. Estadísticas (`/estadisticas`)
+- Dashboard de ventas
+- Gráficos de rendimiento
+- Métricas del negocio
+
+### 5. Usuarios (`/usuarios`)
+- Gestión de empleados
+- Asignación de roles
+- PINs de acceso
+
+---
+
+## 🔐 Sistema de Autenticación
+
+### Flujo de Autenticación
+
+```
+┌──────────────────────────────────────────────────────┐
+│                   PROPIETARIO                         │
+│            (Email + Contraseña)                       │
+│                      │                                │
+│                      ▼                                │
+│    ┌─────────────────────────────────┐               │
+│    │        SESIÓN DE TIENDA         │               │
+│    │      (Persiste en dispositivo)   │               │
+│    └─────────────────────────────────┘               │
+│                      │                                │
+│         ┌───────────┴───────────┐                    │
+│         ▼                       ▼                    │
+│  ┌─────────────┐         ┌─────────────┐            │
+│  │  EMPLEADO   │         │ PROPIETARIO │            │
+│  │   (PIN)     │         │(Contraseña) │            │
+│  └─────────────┘         └─────────────┘            │
+└──────────────────────────────────────────────────────┘
+```
+
+### Roles y Permisos
+
+| Acción | Cajero | Gerente | Admin | Propietario |
+|--------|--------|---------|-------|-------------|
+| Punto de Venta | ✅ | ✅ | ✅ | ✅ |
+| Ver Inventario | ✅ | ✅ | ✅ | ✅ |
+| Editar Inventario | ❌ | ✅ | ✅ | ✅ |
+| Ver Historial | ✅ | ✅ | ✅ | ✅ |
+| Estadísticas | ❌ | ✅ | ✅ | ✅ |
+| Gestión Usuarios | ❌ | ❌ | ✅ | ✅ |
+| Cerrar Sesión | ❌ | ❌ | ✅ | ✅ |
+
+---
+
+## 🔌 API de Servicios
+
+### productService.js
+```javascript
+getProducts()        // Obtener todos los productos
+createProduct(data)  // Crear producto
+updateProduct(id, data) // Actualizar producto
+deleteProduct(id)    // Eliminar producto
+```
+
+### salesService.js
+```javascript
+createSale(data)     // Crear venta
+getSales(limit)      // Obtener ventas
+getSalesSince(date)  // Ventas desde fecha
+getTodaySales()      // Ventas de hoy
+```
+
+### staffService.js
+```javascript
+getStaff()           // Obtener empleados
+createStaff(data)    // Crear empleado
+updateStaff(id, data) // Actualizar empleado
+deleteStaff(id)      // Eliminar empleado
+validatePin(pin)     // Validar PIN
+```
+
+### cashCutService.js
+```javascript
+getCurrentShiftSummary() // Resumen del turno
+createCashCut(data)      // Crear corte
+getCashCuts(limit)       // Historial de cortes
+getLastCut()             // Último corte
+```
+
+---
+
+## 🚀 Despliegue
+
+### Vercel (Recomendado)
+
+1. **Instalar Vercel CLI**
+```bash
+npm install -g vercel
+```
+
+2. **Desplegar**
+```bash
+cd frontend
+vercel --prod
+```
+
+### Variables de Entorno en Vercel
+Configura en el dashboard de Vercel:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+---
+
+## 🗃 Esquema de Base de Datos
+
+### Tablas
+
+#### profiles
+```sql
+- id (uuid, PK, references auth.users)
+- store_name (text)
+- full_name (text)
+- role (text)
+- created_at (timestamp)
+```
+
+#### products
+```sql
+- id (bigint, PK)
+- user_id (uuid, FK)
+- name (text)
+- barcode (text)
+- price (numeric)
+- stock (integer)
+- image_url (text)
+- created_at (timestamp)
+```
+
+#### sales
+```sql
+- id (bigint, PK)
+- user_id (uuid, FK)
+- total (numeric)
+- created_at (timestamp)
+```
+
+#### sale_items
+```sql
+- id (bigint, PK)
+- sale_id (bigint, FK)
+- user_id (uuid, FK)
+- product_name (text)
+- quantity (integer)
+- price (numeric)
+- total (numeric)
+```
+
+#### staff
+```sql
+- id (bigint, PK)
+- user_id (uuid, FK)
+- name (text)
+- role (text)
+- pin (text)
+- active (boolean)
+- created_at (timestamp)
+```
+
+#### cash_cuts
+```sql
+- id (bigint, PK)
+- user_id (uuid, FK)
+- staff_name (text)
+- staff_role (text)
+- cut_type (text)
+- start_time (timestamp)
+- end_time (timestamp)
+- sales_count (integer)
+- sales_total (numeric)
+- expected_cash (numeric)
+- actual_cash (numeric)
+- difference (numeric)
+- notes (text)
+- created_at (timestamp)
+```
+
+---
+
+## 📄 Licencia
+
+Este proyecto es **privado** y de uso exclusivo del propietario.
+
+---
+
+## 👤 Autor
+
+**FoxSolid23df-IA**
 
 ---
 
 ## 📞 Soporte
 
-¿Problemas con la instalación? ¿Dudas sobre el uso?
-
-- 📧 Abrir un **Issue** en GitHub
-- 💡 Consultar la **documentación de API**
-- 🔍 Revisar los **archivos de ejemplo**
+Para soporte técnico o consultas, contactar al propietario del repositorio.
 
 ---
 
-**Desarrollado con ❤️ para facilitar la gestión de ventas e inventario**
-
-*Sistema POS Web v1.0 - Listo para producción* ✨
+*Última actualización: Enero 2026*

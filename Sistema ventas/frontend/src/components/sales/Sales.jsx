@@ -1,8 +1,9 @@
 // ===== COMPONENTE PUNTO DE VENTA OPTIMIZADO =====
 import React, { useState, useEffect, useRef } from 'react'
 import TicketVenta from './TicketVenta'
-import { buscarProductoPorCodigo, crearVenta, formatearDinero, validarCodigoBarras } from '../../utils'
+import { formatearDinero, validarCodigoBarras } from '../../utils'
 import { productService } from '../../services/productService'
+import { salesService } from '../../services/salesService'
 import { useApi } from '../../hooks/useApi'
 import { useCart } from '../../hooks/useCart'
 import { useGlobalScanner } from '../../hooks/scanner'
@@ -201,28 +202,34 @@ export const Sales = () => {
         setVendiendo(true)
 
         try {
-            await ejecutarPeticion(async () => {
-                const ventaData = {
-                    items: carrito.map(item => ({
-                        productId: item.id,
-                        quantity: item.quantity,
-                        price: item.price
-                    })),
-                    total: total
-                }
+            // Preparar datos para Supabase
+            const ventaData = {
+                items: carrito.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    stock: item.stock || 0
+                })),
+                total: total
+            }
 
-                const ventaCreada = await crearVenta(ventaData)
+            // Crear venta en Supabase
+            const ventaCreada = await salesService.createSale(ventaData)
 
-                setVentaCompletada({
-                    ...ventaCreada,
-                    productos: carrito
-                })
-
-                vaciarCarrito()
-                setMostrarModal(true)
-                // Venta completada - el modal de venta completada mostrará la confirmación
+            setVentaCompletada({
+                ...ventaCreada,
+                productos: carrito
             })
-        } catch {
+
+            // Recargar productos para actualizar stock
+            const productosActualizados = await productService.getProducts()
+            setProductos(productosActualizados)
+
+            vaciarCarrito()
+            setMostrarModal(true)
+        } catch (error) {
+            console.error('Error al crear venta:', error)
             mostrarModalPersonalizado(
                 'Error al procesar venta',
                 'No se pudo completar la venta. Por favor, intenta nuevamente.',

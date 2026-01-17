@@ -1,22 +1,27 @@
-# Node dependencies
+# Dependencias
 node_modules/
+dist/
 
-# Env files
+# Variables de entorno
 .env
+.env.local
 .env.*.local
 
-# database local
-data
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# IA
-.claude
+# Editor
+.vscode/
+.idea/
 
-# Electron build
-dist/
-release/
-*.log
-build
-
-# Archivos temporales de Windows
+# OS
+.DS_Store
 Thumbs.db
-*.exe
+
+# Vercel
+.vercel/
+
+# Cache
+.cache/

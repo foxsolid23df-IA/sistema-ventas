@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../supabase';
 import Swal from 'sweetalert2';
 import './LockScreen.css';
 
 export const LockScreen = () => {
     const [pin, setPin] = useState('');
     const [isValidating, setIsValidating] = useState(false);
-    const { loginWithPin, unlockAsOwner, storeName, logout } = useAuth();
+    const { loginWithPin, unlockAsOwner, storeName, logout, user } = useAuth();
 
     const handlePinInput = (digit) => {
         if (pin.length < 6 && !isValidating) {
@@ -57,13 +58,67 @@ export const LockScreen = () => {
     };
 
     const handleOwnerAccess = async () => {
-        unlockAsOwner();
-        Swal.fire({
-            title: '¡Bienvenido, Propietario!',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false
+        // Pedir contraseña para verificar identidad
+        const { value: password } = await Swal.fire({
+            title: '🔐 Acceso de Propietario',
+            html: `
+                <p style="margin-bottom: 15px; color: #666;">
+                    Por seguridad, ingresa tu contraseña de cuenta
+                </p>
+                <p style="font-size: 12px; color: #999;">
+                    Email: ${user?.email || 'usuario@email.com'}
+                </p>
+            `,
+            input: 'password',
+            inputPlaceholder: 'Tu contraseña',
+            showCancelButton: true,
+            confirmButtonText: 'Verificar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes ingresar tu contraseña';
+                }
+            }
         });
+
+        if (!password) return;
+
+        // Mostrar loading
+        Swal.fire({
+            title: 'Verificando...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+        });
+
+        try {
+            // Verificar contraseña con Supabase
+            const { error } = await supabase.auth.signInWithPassword({
+                email: user?.email,
+                password: password
+            });
+
+            if (error) {
+                Swal.fire({
+                    title: 'Contraseña incorrecta',
+                    text: 'La contraseña no es válida. Intenta de nuevo.',
+                    icon: 'error'
+                });
+                return;
+            }
+
+            // Contraseña correcta - desbloquear
+            unlockAsOwner();
+            Swal.fire({
+                title: '¡Bienvenido, Propietario!',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error('Error verificando contraseña:', error);
+            Swal.fire('Error', 'No se pudo verificar la contraseña', 'error');
+        }
     };
 
     const handleLogout = async () => {

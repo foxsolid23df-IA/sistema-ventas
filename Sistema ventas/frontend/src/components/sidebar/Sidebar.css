@@ -130,6 +130,18 @@
     color: white !important;
 }
 
+/* CASH CUT BUTTON */
+.cash-cut-btn {
+    background: rgba(251, 191, 36, 0.1) !important;
+    color: #fbbf24 !important;
+    margin-top: 8px !important;
+}
+
+.cash-cut-btn:hover {
+    background: #f59e0b !important;
+    color: #000 !important;
+}
+
 .logout-btn {
     margin-top: auto !important;
     background: rgba(239, 68, 68, 0.1) !important;
