@@ -1,7 +1,10 @@
 /* ===== BUSINESS PRO - STATS VIEW ===== */
+/* Optimizado para tablets, smartphones y Safari */
+
 .stats-view {
-    padding: 2rem;
+    padding: var(--spacing-xl, 2rem);
     min-height: 100vh;
+    min-height: -webkit-fill-available;
 }
 
 .stats-header {
@@ -11,7 +14,7 @@
 }
 
 .stats-header h2 {
-    font-size: 2.2rem;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
     font-weight: 800;
     letter-spacing: -1px;
     margin: 0;
@@ -20,7 +23,7 @@
 /* KPI CARDS */
 .stats-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
     margin-bottom: 3rem;
 }
@@ -29,7 +32,7 @@
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
     border-radius: 20px;
-    padding: 2rem;
+    padding: var(--spacing-xl, 2rem);
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -51,7 +54,7 @@
 }
 
 .stat-value {
-    font-size: 2.5rem;
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
     font-weight: 900;
     color: var(--text-main);
     letter-spacing: -1px;
@@ -64,7 +67,7 @@
 /* CHARTS SECTION */
 .charts-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
     gap: 2rem;
 }
 
@@ -72,8 +75,9 @@
     background: var(--bg-secondary);
     border: 1px solid var(--glass-border);
     border-radius: 24px;
-    padding: 2rem;
+    padding: var(--spacing-xl, 2rem);
     box-shadow: var(--card-shadow);
+    min-height: 300px;
 }
 
 .chart-container h3 {
@@ -91,10 +95,158 @@
     height: 18px;
     background: var(--accent);
     border-radius: 2px;
+    flex-shrink: 0;
 }
 
-@media (max-width: 1024px) {
+/* ========= RESPONSIVE BREAKPOINTS ========= */
+
+/* Tablets landscape (1025px - 1280px) */
+@media (min-width: 1025px) and (max-width: 1280px) {
     .charts-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* Tablets portrait (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .stats-view {
+        padding: 1.5rem;
+    }
+
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .stat-card {
+        padding: 1.5rem;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .chart-container {
+        padding: 1.5rem;
+    }
+}
+
+/* Smartphones landscape y tablets pequeñas (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .stats-view {
+        padding: 1rem;
+    }
+
+    .stats-header {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+    }
+
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        padding: 1.25rem;
+        border-radius: 16px;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .chart-container {
+        padding: 1.25rem;
+        border-radius: 16px;
+        min-height: 250px;
+    }
+
+    .chart-container h3 {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+}
+
+/* Smartphones (hasta 480px) */
+@media (max-width: 480px) {
+    .stats-view {
+        padding: 0.75rem;
+    }
+
+    .stats-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .stats-cards {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        padding: 1rem;
+        border-radius: 12px;
+        gap: 0.25rem;
+    }
+
+    .stat-card h3 {
+        font-size: 0.65rem;
+        letter-spacing: 1px;
+    }
+
+    .stat-value {
+        font-size: 1.5rem;
+    }
+
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .chart-container {
+        padding: 1rem;
+        border-radius: 14px;
+        min-height: 220px;
+    }
+
+    .chart-container h3 {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+
+    .chart-container h3::before {
+        width: 3px;
+        height: 14px;
+    }
+}
+
+/* Smartphones muy pequeños */
+@media (max-width: 375px) {
+    .stats-view {
+        padding: 0.5rem;
+    }
+
+    .stat-card {
+        padding: 0.75rem;
+    }
+
+    .stat-card h3 {
+        font-size: 0.6rem;
+    }
+
+    .stat-value {
+        font-size: 1.35rem;
+    }
+}
+
+/* Touch devices - desactivar hover effects */
+@media (hover: none) {
+    .stat-card:hover {
+        transform: none;
     }
 }

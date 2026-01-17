@@ -16,14 +16,29 @@ export const Sidebar = () => {
     } = useAuth();
 
     const [showCashCut, setShowCashCut] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
 
     // Determinar el nombre a mostrar
     const displayName = activeStaff?.name || 'Usuario';
     const displayRole = activeStaff?.isOwner ? 'PROPIETARIO' : (activeRole?.toUpperCase() || 'VENDEDOR');
 
+    const toggleSidebar = () => setIsOpen(!isOpen);
+
     return (
         <>
-            <aside className="sidebar">
+            {/* Header móvil con toggle */}
+            <header className="mobile-header">
+                <button className="hamburger" onClick={toggleSidebar}>
+                    {isOpen ? '✕' : '☰'}
+                </button>
+                <div className="mobile-logo">{storeName || 'MI TIENDA'}</div>
+                <div className="mobile-user-icon" onClick={lockScreen}>👤</div>
+            </header>
+
+            {/* Overlay para cerrar sidebar al tocar fuera */}
+            {isOpen && <div className="sidebar-overlay" onClick={toggleSidebar}></div>}
+
+            <aside className={`sidebar ${isOpen ? 'show' : ''}`}>
                 <div className="sidebar-header">
                     <h2>Menu</h2>
                     <small>{storeName || 'Mi Tienda'}</small>
@@ -39,64 +54,61 @@ export const Sidebar = () => {
                 </div>
 
                 <nav className="sidebar-nav">
-                    {/* TODOS pueden ver Punto de Venta */}
                     <NavLink
                         to="/"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen(false)}
                         end
                     >
                         <span className="nav-text">🛒 Punto de Venta</span>
                     </NavLink>
 
-                    {/* TODOS pueden ver Inventario */}
                     <NavLink
                         to="/inventario"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen(false)}
                     >
                         <span className="nav-text">📦 Inventario</span>
                     </NavLink>
 
-                    {/* TODOS pueden ver Historial */}
                     <NavLink
                         to="/historial"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen(false)}
                     >
                         <span className="nav-text">📜 Historial</span>
                     </NavLink>
 
-                    {/* Solo GERENTES y ADMIN pueden ver Estadísticas */}
                     {canAccessReports && (
                         <NavLink
                             to="/estadisticas"
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                            onClick={() => setIsOpen(false)}
                         >
                             <span className="nav-text">📊 Estadísticas</span>
                         </NavLink>
                     )}
 
-                    {/* Solo ADMIN puede gestionar usuarios */}
                     {isAdmin && (
                         <NavLink
                             to="/usuarios"
                             className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                            onClick={() => setIsOpen(false)}
                         >
                             <span className="nav-text">👥 Usuarios</span>
                         </NavLink>
                     )}
 
-                    {/* Botón de Corte de Caja - TODOS pueden hacer corte de su turno */}
-                    <button onClick={() => setShowCashCut(true)} className="nav-item cash-cut-btn">
+                    <button onClick={() => { setShowCashCut(true); setIsOpen(false); }} className="nav-item cash-cut-btn">
                         <span className="nav-text">💰 Corte de Caja</span>
                     </button>
 
-                    {/* Botón de bloquear pantalla */}
-                    <button onClick={lockScreen} className="nav-item lock-btn">
+                    <button onClick={() => { lockScreen(); setIsOpen(false); }} className="nav-item lock-btn">
                         <span className="nav-text">🔒 Bloquear Pantalla</span>
                     </button>
 
-                    {/* Solo mostrar cerrar sesión a admins */}
                     {isAdmin && (
-                        <button onClick={logout} className="nav-item logout-btn">
+                        <button onClick={() => { logout(); setIsOpen(false); }} className="nav-item logout-btn">
                             <span className="nav-text">🚪 Cerrar Sesión</span>
                         </button>
                     )}

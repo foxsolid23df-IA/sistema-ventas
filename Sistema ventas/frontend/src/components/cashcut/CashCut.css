@@ -463,3 +463,241 @@
 .ticket-preview .difference-negative {
     color: red;
 }
+
+/* ========= RESPONSIVE BREAKPOINTS ========= */
+
+/* Tablets portrait (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    .cash-cut-modal {
+        max-width: 450px;
+    }
+
+    .summary-stats {
+        gap: 0.75rem;
+    }
+}
+
+/* Smartphones landscape y tablets pequeñas (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+    .cash-cut-modal {
+        padding: 1.5rem;
+        border-radius: 16px;
+        max-height: calc(95vh - var(--safe-area-bottom, 0px));
+    }
+
+    .modal-header {
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.35rem;
+    }
+
+    .cut-type-selector {
+        gap: 0.75rem;
+    }
+
+    .type-btn {
+        padding: 0.875rem;
+        font-size: 0.85rem;
+    }
+
+    .summary-section {
+        padding: 1.25rem;
+    }
+
+    .summary-stats {
+        flex-direction: row;
+        gap: 0.75rem;
+    }
+
+    .stat-card {
+        padding: 0.875rem;
+    }
+
+    .stat-value {
+        font-size: 1.35rem;
+    }
+
+    .ticket-preview {
+        max-height: 350px;
+    }
+}
+
+/* Smartphones (hasta 480px) */
+@media (max-width: 480px) {
+    .cash-cut-overlay {
+        padding: 0.5rem;
+        padding-bottom: calc(0.5rem + var(--safe-area-bottom, 0px));
+        align-items: flex-end;
+    }
+
+    .cash-cut-modal {
+        padding: 1.25rem;
+        border-radius: 20px 20px 0 0;
+        max-width: 100%;
+        max-height: calc(90vh - var(--safe-area-bottom, 0px));
+        margin: 0;
+    }
+
+    .modal-header {
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .close-btn {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .cut-type-selector {
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .type-btn {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+        border-radius: 10px;
+    }
+
+    .summary-section {
+        padding: 1rem;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+
+    .summary-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .stat-card {
+        padding: 0.75rem;
+    }
+
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.75rem;
+    }
+
+    .cash-count-section label,
+    .notes-section label {
+        font-size: 0.9rem;
+    }
+
+    .money-input-container input {
+        font-size: 1.1rem;
+        padding: 0.875rem;
+    }
+
+    .currency-symbol {
+        padding: 0.875rem;
+        font-size: 1.1rem;
+    }
+
+    .difference-display {
+        padding: 0.875rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .notes-section textarea {
+        min-height: 60px;
+        padding: 0.875rem;
+    }
+
+    .notes-section {
+        margin-bottom: 1rem;
+    }
+
+    .modal-actions {
+        gap: 0.75rem;
+    }
+
+    .modal-actions .btn-secondary,
+    .modal-actions .btn-primary {
+        padding: 0.875rem;
+        min-height: 48px;
+        font-size: 1rem;
+    }
+
+    .ticket-preview {
+        max-height: 280px;
+        padding: 1rem;
+        font-size: 11px;
+    }
+
+    .ticket-modal {
+        max-width: 100%;
+    }
+
+    .sales-preview {
+        padding-top: 0.75rem;
+    }
+
+    .sales-scroll {
+        max-height: 120px;
+    }
+}
+
+/* Smartphones muy pequeños */
+@media (max-width: 375px) {
+    .cash-cut-modal {
+        padding: 1rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1.15rem;
+    }
+
+    .stat-value {
+        font-size: 1.15rem;
+    }
+
+    .type-btn {
+        font-size: 0.75rem;
+        padding: 0.65rem 0.4rem;
+    }
+}
+
+/* Orientación landscape en móviles */
+@media (max-width: 896px) and (orientation: landscape) {
+    .cash-cut-overlay {
+        align-items: center;
+    }
+
+    .cash-cut-modal {
+        border-radius: 16px;
+        max-height: 90vh;
+    }
+
+    .summary-stats {
+        flex-direction: row;
+    }
+
+    .ticket-preview {
+        max-height: 200px;
+    }
+}
+
+/* Touch devices */
+@media (hover: none) and (pointer: coarse) {
+
+    .type-btn,
+    .close-btn {
+        min-height: 44px;
+    }
+
+    .modal-actions .btn-secondary,
+    .modal-actions .btn-primary {
+        min-height: 48px;
+    }
+}

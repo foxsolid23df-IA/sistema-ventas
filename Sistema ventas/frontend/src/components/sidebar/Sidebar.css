@@ -1,17 +1,66 @@
+/* === MOBILE HEADER === */
+.mobile-header {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--glass-border);
+    z-index: 1000;
+    align-items: center;
+    padding: 0 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.hamburger {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-logo {
+    flex: 1;
+    text-align: center;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--accent);
+}
+
+.mobile-user-icon {
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 900;
+}
+
 /* Sidebar */
 .sidebar {
     width: var(--sidebar-width);
-    min-width: var(--sidebar-width);
-    /* Prevent shrinking */
     background: var(--bg-secondary);
     color: var(--text-main);
     display: flex;
     flex-direction: column;
     height: 100vh;
-    z-index: 100;
+    z-index: 950;
     border-right: 1px solid var(--glass-border);
-    overflow: hidden;
-    /* Removed position: fixed to allow flex layout */
+    transition: transform 0.3s ease;
 }
 
 .sidebar-header {
@@ -154,84 +203,182 @@
     color: white !important;
 }
 
-/* === RESPONSIVE DESIGN === */
+/* ========= RESPONSIVE BREAKPOINTS ========= */
 
-/* Tablets (768px - 1024px) */
-@media (max-width: 1024px) and (min-width: 769px) {
+/* Tablets portrait (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
     .sidebar {
-        width: 200px;
-        /* Sidebar más angosto para tablets */
+        transform: translateX(0) !important;
     }
 
     .sidebar-header {
-        padding: 15px;
+        padding: 20px 15px;
     }
 
     .sidebar-header h2 {
-        font-size: 1.3rem;
+        font-size: 1.2rem;
     }
 
     .nav-item {
-        padding: 12px 15px;
+        padding: 12px 18px;
+        font-size: 0.9rem;
+        margin: 3px 10px;
+        width: calc(100% - 20px);
+    }
+
+    .nav-icon {
+        font-size: 1.1rem;
+    }
+
+    .active-user-badge {
+        padding: 10px 12px;
+        margin: 10px;
+    }
+}
+
+/* Smartphones y tablets pequeñas (hasta 768px) */
+@media (max-width: 768px) {
+    .mobile-header {
+        display: flex;
+        /* Safe area para notch */
+        padding-top: var(--safe-area-top, 0);
+        height: calc(var(--header-height) + var(--safe-area-top, 0px));
+    }
+
+    .sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        transform: translateX(-100%);
+        width: 280px;
+        max-width: 85vw;
+        /* Safe area para dispositivos con notch */
+        padding-top: var(--safe-area-top, 0px);
+        padding-bottom: var(--safe-area-bottom, 0px);
+        /* Transición suave */
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        /* Safari fix */
+        -webkit-transform: translateX(-100%);
+        will-change: transform;
+    }
+
+    .sidebar.show {
+        transform: translateX(0);
+        -webkit-transform: translateX(0);
+    }
+
+    .sidebar-header {
+        padding: 20px 16px;
+    }
+
+    .nav-item {
+        padding: 14px 20px;
+        font-size: 1rem;
+        min-height: 48px;
+        /* Touch target */
+    }
+
+    .hamburger {
+        min-width: 44px;
+        min-height: 44px;
+    }
+
+    .sidebar-overlay {
+        /* Animación de overlay */
+        opacity: 0;
+        animation: fadeIn 0.2s ease forwards;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+        }
+    }
+}
+
+/* Smartphones pequeños (hasta 375px) */
+@media (max-width: 375px) {
+    .sidebar {
+        width: 260px;
+    }
+
+    .sidebar-header {
+        padding: 16px 12px;
+    }
+
+    .sidebar-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .nav-item {
+        padding: 12px 16px;
         font-size: 0.95rem;
     }
 
-    .nav-icon {
-        font-size: 1.1rem;
-        min-width: 18px;
+    .active-user-badge {
+        padding: 10px 12px;
+        margin: 10px;
+    }
+
+    .active-user-badge .user-name {
+        font-size: 0.85rem;
     }
 }
 
-/* Tablets pequeñas y móviles (768px o menos) */
-@media (max-width: 768px) {
+/* Orientación landscape en móviles */
+@media (max-width: 896px) and (orientation: landscape) {
     .sidebar {
-        width: 250px;
-        /* Mantener ancho original para overlay */
-        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+        width: 240px;
     }
 
     .sidebar-header {
-        padding: 20px;
-        border-bottom: 2px solid #495057;
-    }
-
-    .sidebar-header h2 {
-        font-size: 1.4rem;
+        padding: 12px 16px;
     }
 
     .nav-item {
-        padding: 18px 20px;
-        font-size: 1.1rem;
+        padding: 10px 16px;
+        margin: 2px 10px;
     }
 
-    .nav-icon {
-        font-size: 1.3rem;
-        min-width: 22px;
+    .active-user-badge {
+        padding: 8px 12px;
+        margin: 8px;
     }
 }
 
-/* Notebooks y pantallas grandes (1025px+) */
-@media (min-width: 1025px) {
+/* Desktop (mayor a 768px) */
+@media (min-width: 769px) {
     .sidebar {
-        width: 250px;
-        /* Ancho completo para pantallas grandes */
+        transform: translateX(0) !important;
+        -webkit-transform: translateX(0) !important;
     }
 
-    .sidebar-header {
-        padding: 25px 20px;
+    .mobile-header {
+        display: none !important;
     }
 
-    .sidebar-header h2 {
-        font-size: 1.6rem;
+    .sidebar-overlay {
+        display: none !important;
     }
+}
 
+/* Touch devices - targets más grandes */
+@media (hover: none) and (pointer: coarse) {
     .nav-item {
-        padding: 16px 20px;
-        font-size: 1.05rem;
+        min-height: 48px;
     }
 
-    .nav-icon {
-        font-size: 1.25rem;
-        min-width: 22px;
+    .hamburger {
+        min-width: 48px;
+        min-height: 48px;
+    }
+
+    .mobile-user-icon {
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 }
