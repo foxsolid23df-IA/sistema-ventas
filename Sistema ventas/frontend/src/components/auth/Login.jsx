@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { invitationService } from '../../services/invitationService';
 import './Login.css';
 
 export const Login = () => {
@@ -21,15 +22,8 @@ export const Login = () => {
         invitationCode: ''
     });
 
-    // Códigos de invitación válidos (solo para área administrativa)
-    // Estos códigos solo pueden ser proporcionados por el área administrativa
-    const VALID_INVITATION_CODES = [
-        'ADMIN2024',
-        'POS-REG-2024',
-        'BIZ-PRO-2024'
-        // Agregar más códigos según sea necesario
-        // TODO: En el futuro, mover a una tabla en Supabase para mejor gestión
-    ];
+    // Estado para el código de invitación validado
+    const [validatedCode, setValidatedCode] = useState(null);
 
     // Si hay código de invitación en la URL, activar modo registro y pre-llenar el código
     useEffect(() => {
@@ -61,19 +55,26 @@ export const Login = () => {
 
         try {
             if (isRegistering) {
-                // Validar código de invitación
-                if (!formData.invitationCode || !VALID_INVITATION_CODES.includes(formData.invitationCode.toUpperCase())) {
-                    setError('Código de invitación inválido. Solo el área administrativa puede proporcionar códigos de registro.');
+                // Validar código de invitación contra la base de datos
+                if (!formData.invitationCode) {
+                    setError('Código de invitación requerido. Solo el área administrativa puede proporcionar códigos de registro.');
                     setLoading(false);
                     return;
                 }
 
-                await signUp(formData.email, formData.password, formData.storeName, formData.fullName);
+                const validation = await invitationService.validateCode(formData.invitationCode);
+                
+                if (!validation.valid) {
+                    setError(validation.error || 'Código de invitación inválido.');
+                    setLoading(false);
+                    return;
+                }
+
+                // Proceder con el registro pasando el código validado
+                await signUp(formData.email, formData.password, formData.storeName, formData.fullName, validation.codeId);
                 // Signup usually logs in automatically in Supabase, or requires email confirmation.
-                // If auto-login, the 'user' effect will redirect. 
-                // If confirmation needed, we might need a message. 
-                // Default Supabase config often confirms email by default for dev? 
-                // We'll assume auto-login or handle "Check your email" if needed.
+                // Si auto-login, el efecto 'user' redirigirá. 
+                // Si requiere confirmación, podríamos necesitar un mensaje. 
             } else {
                 await login(formData.email, formData.password);
             }

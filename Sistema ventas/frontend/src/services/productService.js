@@ -74,5 +74,17 @@ export const productService = {
 
         if (error) throw error;
         return data;
+    },
+
+    // Obtener productos con poco stock (menos de 10 unidades)
+    getLowStockProducts: async (threshold = 10) => {
+        const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .lte('stock', threshold)
+            .order('stock', { ascending: true });
+
+        if (error) throw error;
+        return data || [];
     }
 };

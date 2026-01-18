@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     // Registro de nueva tienda
-    const signUp = async (email, password, storeName, fullName) => {
+    const signUp = async (email, password, storeName, fullName, invitationCodeId = null) => {
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
@@ -96,6 +96,19 @@ export const AuthProvider = ({ children }) => {
             if (profileError) {
                 console.error('Error creating profile:', profileError);
                 throw new Error('Error creating user profile: ' + profileError.message);
+            }
+
+            // Marcar el código de invitación como usado después del registro exitoso
+            if (invitationCodeId && authData.user.id) {
+                try {
+                    // Importación dinámica para evitar dependencias circulares
+                    const invitationService = (await import('../services/invitationService')).invitationService;
+                    await invitationService.markAsUsed(invitationCodeId, authData.user.id);
+                } catch (codeError) {
+                    // Si falla marcar como usado, registrar pero no bloquear el registro
+                    console.error('Error marcando código de invitación como usado:', codeError);
+                    // No lanzamos el error para no bloquear el registro exitoso
+                }
             }
         }
         // Al registrarse, el dueño es el operador activo
